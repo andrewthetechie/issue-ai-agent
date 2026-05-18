@@ -1,0 +1,28 @@
+{
+  "action": "opened",
+  "issue": {
+    "number": 1,
+    "title": "App crashes when clicking save button",
+    "body": "## Steps to reproduce\n1. Open the app\n2. Click save\n3. App crashes\n\n**Expected:** File saves normally\n**Actual:** App crashes with error",
+    "html_url": "https://github.com/owner/repo/issues/1",
+    "user": {
+      "login": "testuser"
+    },
+    "labels": [],
+    "created_at": "2026-05-18T00:00:00Z"
+  },
+  "repository": {
+    "name": "repo",
+    "owner": {
+      "login": "owner"
+    },
+    "default_branch": "main",
+    "clone_url": "https://github.com/owner/repo.git"
+  },
+  "installation": {
+    "id": 2
+  },
+  "sender": {
+    "login": "testuser"
+  }
+}

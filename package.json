@@ -1,0 +1,30 @@
+{
+  "name": "issue-ai-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered GitHub Issue triage and auto-reply bot",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "probot run ./lib/index.js",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "probot": "^14.3.2"
+  },
+  "devDependencies": {
+    "@types/ioredis": "^4.28.10",
+    "@types/node": "^24.0.0",
+    "nock": "^14.0.5",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": "^20.18.1 || >= 22"
+  }
+}
