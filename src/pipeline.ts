@@ -1,6 +1,7 @@
 import type { Context } from "probot";
 import type { GitHubIssue, PipelineResult, RepoConfig } from "./types.js";
-import { LLMClient } from "./llm/client.js";
+import { createProvider, detectProvider } from "./llm/factory.js";
+import type { ProviderName } from "./llm/factory.js";
 import { loadConfig } from "./config/loader.js";
 import { sanitizeIssueBody, sanitizeIssueTitle } from "./sanitizer.js";
 import { classifyIssue } from "./classifier.js";
@@ -77,14 +78,13 @@ export async function runPipeline(
   const sanitizedTitle = sanitizeIssueTitle(issue.title);
   const sanitizedBody = sanitizeIssueBody(issue.body, config);
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  const devMode = !apiKey;
+  const providerName = (config.llm.provider ?? detectProvider()) as ProviderName;
+  const llmClient = createProvider(providerName, log);
+  const devMode = !llmClient;
 
   if (devMode) {
-    log.warn("ANTHROPIC_API_KEY not set — running in dev mode with mock responses");
+    log.warn("No LLM API key configured — running in dev mode with mock responses");
   }
-
-  const llmClient = apiKey ? new LLMClient(apiKey, log) : null;
 
   if (config.features.classify) {
     try {
@@ -95,7 +95,7 @@ export async function runPipeline(
           confidence: 0.5,
           summary: `[DEV MODE] ${issue.title}`,
           suggestedLabels: ["bug"],
-          reasoning: "Mock classification (ANTHROPIC_API_KEY not set)",
+          reasoning: "Mock classification (no LLM API key configured)",
         };
         log.info({ issueNumber: issue.number, devMode: true }, "Mock classification applied");
       } else {
@@ -133,7 +133,7 @@ export async function runPipeline(
           priority: "medium" as const,
         };
         replyBody = [
-          `**[DEV MODE]** This is a mock reply (ANTHROPIC_API_KEY not set).\n`,
+          `**[DEV MODE]** This is a mock reply (no LLM API key configured).\n`,
           `Classification: **${classification.category}** (priority: ${classification.priority})`,
           "",
           "Once configured with an API key, this bot will generate contextual replies.",

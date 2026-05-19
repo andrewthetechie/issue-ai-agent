@@ -43,6 +43,7 @@ export interface RepoConfig {
     users: string[];
   };
   llm: {
+    provider: "anthropic" | "openai";
     model: string;
     maxTokens: number;
   };

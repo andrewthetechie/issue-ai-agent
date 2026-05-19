@@ -1,8 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Logger } from "pino";
 import type { LLMMessage, LLMResponse } from "./types.js";
+import type { LLMProvider } from "./provider.js";
 
-export class LLMClient {
+export class AnthropicProvider implements LLMProvider {
   private client: Anthropic;
   private logger: Logger;
 

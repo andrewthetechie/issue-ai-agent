@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runPipeline } from "../src/pipeline.js";
 import type { Context } from "probot";
+import { createProvider } from "../src/llm/factory.js";
 
-// Mock LLMClient to avoid real API calls
-vi.mock("../src/llm/client.js", () => ({
-  LLMClient: vi.fn().mockImplementation(() => {
+// Mock LLM factory to avoid real API calls
+vi.mock("../src/llm/factory.js", () => ({
+  createProvider: vi.fn().mockImplementation(() => {
     let callCount = 0;
     return {
       complete: vi.fn().mockImplementation(() => {
@@ -88,6 +89,7 @@ describe("runPipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ANTHROPIC_API_KEY = "test-api-key";
+    delete process.env.OPENAI_API_KEY;
   });
 
   it("skips when bot is disabled", async () => {
@@ -123,8 +125,9 @@ describe("runPipeline", () => {
     expect(result.classification).toBeNull();
   });
 
-  it("runs in dev mode when ANTHROPIC_API_KEY is not set", async () => {
+  it("runs in dev mode when no LLM API key is set", async () => {
     delete process.env.ANTHROPIC_API_KEY;
+    vi.mocked(createProvider).mockReturnValueOnce(null as any);
     const context = createMockContext();
 
     const result = await runPipeline(context);

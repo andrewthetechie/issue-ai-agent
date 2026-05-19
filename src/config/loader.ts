@@ -27,6 +27,7 @@ export async function loadConfig(
       users: repoConfig.exclude?.users ?? DEFAULT_CONFIG.exclude.users,
     },
     llm: {
+      provider: repoConfig.llm?.provider ?? DEFAULT_CONFIG.llm.provider,
       model: repoConfig.llm?.model ?? DEFAULT_CONFIG.llm.model,
       maxTokens: repoConfig.llm?.max_tokens ?? DEFAULT_CONFIG.llm.maxTokens,
     },

@@ -1,6 +1,6 @@
 import type { Logger } from "pino";
 import type { GitHubIssue, IssueClassification, RepoConfig } from "./types.js";
-import { LLMClient } from "./llm/client.js";
+import type { LLMProvider } from "./llm/provider.js";
 import { REPLY_SYSTEM_PROMPT, buildReplyUserMessage } from "./prompts/reply.js";
 
 const MAX_REPLY_LENGTH = 4000;
@@ -11,7 +11,7 @@ export async function draftReply(
   sanitizedBody: string,
   sanitizedTitle: string,
   config: RepoConfig,
-  llmClient: LLMClient,
+  llmClient: LLMProvider,
   logger: Logger,
 ): Promise<string> {
   const userMessage = buildReplyUserMessage(

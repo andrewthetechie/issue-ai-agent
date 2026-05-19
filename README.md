@@ -19,7 +19,7 @@ All in ~8 seconds, powered by Claude.
 ### Prerequisites
 
 - Node.js >= 20.18.1 or >= 22
-- An Anthropic API key
+- An Anthropic or OpenAI API key
 - A GitHub account with permission to create GitHub Apps
 
 ### Step 1: Create a GitHub App
@@ -59,7 +59,7 @@ WEBHOOK_SECRET=your-webhook-secret
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
 ...
 -----END RSA PRIVATE KEY-----"
-ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=sk-ant-...    # or OPENAI_API_KEY=sk-...
 LOG_LEVEL=info
 ```
 
@@ -111,7 +111,8 @@ exclude:
   users: ["dependabot[bot]"]           # Skip issues from these users
 
 llm:
-  model: claude-haiku-4-5-20251001     # Claude model to use
+  provider: anthropic                   # "anthropic" or "openai"
+  model: claude-haiku-4-5-20251001     # Model to use
   max_tokens: 2048                      # Max tokens per LLM response
 ```
 
@@ -126,7 +127,8 @@ llm:
 | `security.max_issue_length` | `10000` | Truncate issue body beyond this length |
 | `exclude.labels` | `["wontfix", "skip-ai"]` | Skip issues carrying these labels |
 | `exclude.users` | `["dependabot[bot]"]` | Skip issues opened by these users |
-| `llm.model` | `claude-haiku-4-5-20251001` | Anthropic model identifier |
+| `llm.provider` | `"anthropic"` | LLM provider: `"anthropic"` or `"openai"` |
+| `llm.model` | `claude-haiku-4-5-20251001` | Model identifier (use `gpt-4o-mini` for OpenAI) |
 | `llm.max_tokens` | `2048` | Max tokens for LLM responses |
 
 ## Environment Variables
@@ -136,12 +138,13 @@ llm:
 | `APP_ID` | Yes | GitHub App ID |
 | `WEBHOOK_SECRET` | Yes | Webhook secret for signature verification |
 | `PRIVATE_KEY` | Yes | GitHub App private key (PEM format) |
-| `ANTHROPIC_API_KEY` | No* | Anthropic API key. If unset, bot runs in **dev mode** with mock responses |
+| `ANTHROPIC_API_KEY` | No* | Anthropic API key |
+| `OPENAI_API_KEY` | No* | OpenAI API key |
 | `WEBHOOK_PROXY_URL` | No | Webhook proxy URL (e.g., smee.io channel) |
 | `LOG_LEVEL` | No | Log verbosity: `debug`, `info`, `warn`, `error` (default: `debug`) |
 | `PORT` | No | Server port (default: `3000`) |
 
-*\*Required for production. Dev mode is for testing webhook flow without LLM costs.*
+*\*At least one API key is required for production. If neither is set, the bot runs in **dev mode** with mock responses. The `llm.provider` config selects which to use; if unset, it auto-detects from available env vars.*
 
 ## Development
 
@@ -157,9 +160,9 @@ npm run dev         # TypeScript watch mode
 
 ```
 GitHub Webhook (issues.opened)
-  → classify  — Claude classifies the issue (category + priority)
+  → classify  — LLM classifies the issue (category + priority)
   → label     — Maps classification to repo labels via GitHub API
-  → reply     — Drafts and posts a contextual comment via Claude
+  → reply     — Drafts and posts a contextual comment via LLM
 ```
 
 Key design decisions:
@@ -172,7 +175,7 @@ Key design decisions:
 - [x] **Phase 1**: Issue classification + auto-reply (current)
 - [ ] **Phase 2**: Bug sandbox reproduction
 - [ ] **Phase 3**: Auto-fix PR via mini-swe-agent
-- [ ] **Phase 4**: Multi-model support (OpenAI, Ollama), GitHub Marketplace, i18n
+- [ ] **Phase 4**: GitHub Marketplace, i18n, Ollama support
 
 ## License
 

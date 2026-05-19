@@ -1,6 +1,6 @@
 import type { Logger } from "pino";
 import type { GitHubIssue, IssueClassification, IssueCategory, IssuePriority, RepoConfig } from "./types.js";
-import { LLMClient } from "./llm/client.js";
+import type { LLMProvider } from "./llm/provider.js";
 import { CLASSIFY_SYSTEM_PROMPT } from "./prompts/classify.js";
 import { buildSafeIssueContent } from "./sanitizer.js";
 
@@ -48,7 +48,7 @@ export async function classifyIssue(
   sanitizedBody: string,
   sanitizedTitle: string,
   config: RepoConfig,
-  llmClient: LLMClient,
+  llmClient: LLMProvider,
   logger: Logger,
 ): Promise<IssueClassification> {
   const userContent = buildSafeIssueContent(
