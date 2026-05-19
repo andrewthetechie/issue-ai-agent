@@ -78,21 +78,31 @@ export async function runPipeline(
   const sanitizedBody = sanitizeIssueBody(issue.body, config);
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    log.error("ANTHROPIC_API_KEY environment variable not set");
-    result.errors.push({
-      step: "classify",
-      message: "ANTHROPIC_API_KEY not configured",
-    });
-    return result;
+  const devMode = !apiKey;
+
+  if (devMode) {
+    log.warn("ANTHROPIC_API_KEY not set — running in dev mode with mock responses");
   }
-  const llmClient = new LLMClient(apiKey, log);
+
+  const llmClient = apiKey ? new LLMClient(apiKey, log) : null;
 
   if (config.features.classify) {
     try {
-      result.classification = await classifyIssue(
-        issue, sanitizedBody, sanitizedTitle, config, llmClient, log,
-      );
+      if (devMode || !llmClient) {
+        result.classification = {
+          category: "bug" as const,
+          priority: "medium" as const,
+          confidence: 0.5,
+          summary: `[DEV MODE] ${issue.title}`,
+          suggestedLabels: ["bug"],
+          reasoning: "Mock classification (ANTHROPIC_API_KEY not set)",
+        };
+        log.info({ issueNumber: issue.number, devMode: true }, "Mock classification applied");
+      } else {
+        result.classification = await classifyIssue(
+          issue, sanitizedBody, sanitizedTitle, config, llmClient, log,
+        );
+      }
 
       try {
         const labels = resolveLabels(result.classification, config);
@@ -116,22 +126,38 @@ export async function runPipeline(
 
   if (config.features.reply) {
     try {
-      const replyBody = await draftReply(
-        issue,
-        result.classification ?? {
+      let replyBody: string;
+      if (devMode || !llmClient) {
+        const classification = result.classification ?? {
           category: "question" as const,
           priority: "medium" as const,
-          confidence: 0,
-          summary: "",
-          suggestedLabels: [],
-          reasoning: "Fallback: classification unavailable",
-        },
-        sanitizedBody,
-        sanitizedTitle,
-        config,
-        llmClient,
-        log,
-      );
+        };
+        replyBody = [
+          `**[DEV MODE]** This is a mock reply (ANTHROPIC_API_KEY not set).\n`,
+          `Classification: **${classification.category}** (priority: ${classification.priority})`,
+          "",
+          "Once configured with an API key, this bot will generate contextual replies.",
+          "",
+          "-- Issue AI Agent :robot:",
+        ].join("\n");
+      } else {
+        replyBody = await draftReply(
+          issue,
+          result.classification ?? {
+            category: "question" as const,
+            priority: "medium" as const,
+            confidence: 0,
+            summary: "",
+            suggestedLabels: [],
+            reasoning: "Fallback: classification unavailable",
+          },
+          sanitizedBody,
+          sanitizedTitle,
+          config,
+          llmClient,
+          log,
+        );
+      }
 
       await context.octokit.rest.issues.createComment(
         context.issue({ body: replyBody }),

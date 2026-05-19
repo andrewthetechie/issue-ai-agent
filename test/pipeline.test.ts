@@ -123,13 +123,16 @@ describe("runPipeline", () => {
     expect(result.classification).toBeNull();
   });
 
-  it("returns error when ANTHROPIC_API_KEY is not set", async () => {
+  it("runs in dev mode when ANTHROPIC_API_KEY is not set", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     const context = createMockContext();
 
     const result = await runPipeline(context);
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors[0].message).toContain("ANTHROPIC_API_KEY");
+    // Dev mode uses mock classification instead of erroring
+    expect(result.classification).not.toBeNull();
+    expect(result.classification?.category).toBe("bug");
+    expect(result.classification?.summary).toContain("[DEV MODE]");
+    expect(result.replyPosted).toBe(true);
   });
 
   it("loads config and runs full pipeline with defaults", async () => {
