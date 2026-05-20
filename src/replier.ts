@@ -20,6 +20,7 @@ export async function draftReply(
     classification.category,
     classification.priority,
     issue.labels.map((l) => l.name),
+    classification.relatedIssues,
   );
 
   logger.info({ issueNumber: issue.number, category: classification.category }, "Drafting reply");

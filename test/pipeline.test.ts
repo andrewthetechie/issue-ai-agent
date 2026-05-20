@@ -5,33 +5,43 @@ import { createProvider } from "../src/llm/factory.js";
 
 // Mock LLM factory to avoid real API calls
 vi.mock("../src/llm/factory.js", () => ({
-  createProvider: vi.fn().mockImplementation(() => {
-    let callCount = 0;
-    return {
-      complete: vi.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          // First call: classification
-          return Promise.resolve({
-            text: JSON.stringify({
-              category: "bug",
-              priority: "high",
-              confidence: 0.9,
-              summary: "App crashes on save",
-              suggestedLabels: ["bug"],
-              reasoning: "Clear crash report",
-            }),
-            usage: { inputTokens: 100, outputTokens: 50 },
-          });
-        }
-        // Subsequent calls: reply
+  createProvider: vi.fn().mockImplementation(() => ({
+    complete: vi.fn().mockImplementation((_model, _sysPrompt, messages) => {
+      const userMsg = messages[0]?.content ?? "";
+      if (userMsg.includes("=== ISSUE DATA BEGIN")) {
         return Promise.resolve({
-          text: "Thanks for reporting this crash! We'll look into it.\n\n-- Issue AI Agent :robot:",
-          usage: { inputTokens: 100, outputTokens: 30 },
+          text: JSON.stringify({
+            category: "bug",
+            priority: "high",
+            confidence: 0.9,
+            summary: "App crashes on save",
+            suggestedLabels: ["bug"],
+            reasoning: "Clear crash report",
+          }),
+          usage: { inputTokens: 100, outputTokens: 50 },
         });
-      }),
-    };
-  }),
+      }
+      if (userMsg.includes("Candidate issues")) {
+        return Promise.resolve({
+          text: JSON.stringify({
+            duplicates: [],
+            reasoning: "No duplicates found among candidates.",
+          }),
+          usage: { inputTokens: 80, outputTokens: 20 },
+        });
+      }
+      // Reply call
+      return Promise.resolve({
+        text: "Thanks for reporting this crash! We'll look into it.\n\n-- Issue AI Agent :robot:",
+        usage: { inputTokens: 100, outputTokens: 30 },
+      });
+    }),
+  })),
+}));
+
+// Mock GitHub search API
+vi.mock("../src/github/search.js", () => ({
+  searchSimilarIssues: vi.fn().mockResolvedValue([]),
 }));
 
 function createMockContext(overrides: Record<string, unknown> = {}): Context<"issues.opened"> {
@@ -48,6 +58,11 @@ function createMockContext(overrides: Record<string, unknown> = {}): Context<"is
       issues: {
         addLabels: vi.fn().mockResolvedValue({}),
         createComment: vi.fn().mockResolvedValue({}),
+      },
+      search: {
+        issuesAndPullRequests: vi.fn().mockResolvedValue({
+          data: { items: [] },
+        }),
       },
     },
   };
@@ -148,6 +163,49 @@ describe("runPipeline", () => {
     expect(result.classification).not.toBeNull();
     expect(result.classification?.category).toBe("bug");
     expect(result.labelsApplied.length).toBeGreaterThan(0);
+    expect(result.replyPosted).toBe(true);
+  });
+
+  it("sets relatedIssues when duplicates are found", async () => {
+    const { searchSimilarIssues } = await import("../src/github/search.js");
+    vi.mocked(searchSimilarIssues).mockResolvedValueOnce([
+      { number: 42, title: "Same crash", url: "https://github.com/owner/repo/issues/42" },
+    ]);
+
+    const mockProvider = {
+      complete: vi.fn()
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            category: "duplicate",
+            priority: "medium",
+            confidence: 0.85,
+            summary: "Duplicate of #42",
+            suggestedLabels: ["duplicate"],
+            reasoning: "Same crash as #42",
+          }),
+          usage: { inputTokens: 100, outputTokens: 50 },
+        })
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            duplicates: [42],
+            reasoning: "Same crash report",
+          }),
+          usage: { inputTokens: 80, outputTokens: 20 },
+        })
+        .mockResolvedValueOnce({
+          text: "This appears to be a duplicate of #42.\n\n-- Issue AI Agent :robot:",
+          usage: { inputTokens: 100, outputTokens: 30 },
+        }),
+    };
+    vi.mocked(createProvider).mockReturnValueOnce(mockProvider as any);
+
+    const context = createMockContext();
+
+    const result = await runPipeline(context);
+    expect(result.classification?.category).toBe("duplicate");
+    expect(result.classification?.relatedIssues).toEqual([
+      { number: 42, title: "Same crash", url: "https://github.com/owner/repo/issues/42" },
+    ]);
     expect(result.replyPosted).toBe(true);
   });
 });

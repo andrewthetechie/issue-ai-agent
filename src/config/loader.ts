@@ -17,6 +17,7 @@ export async function loadConfig(
     features: {
       classify: repoConfig.features?.classify ?? DEFAULT_CONFIG.features.classify,
       reply: repoConfig.features?.reply ?? DEFAULT_CONFIG.features.reply,
+      duplicateSearch: repoConfig.features?.duplicateSearch ?? DEFAULT_CONFIG.features.duplicateSearch,
     },
     labelMapping: repoConfig.label_mapping ?? DEFAULT_CONFIG.labelMapping,
     security: {

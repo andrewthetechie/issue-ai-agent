@@ -5,6 +5,7 @@ export const DEFAULT_CONFIG: RepoConfig = {
   features: {
     classify: true,
     reply: true,
+    duplicateSearch: true,
   },
   labelMapping: {
     bug: ["bug"],

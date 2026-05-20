@@ -19,6 +19,12 @@ export type IssueCategory =
 
 export type IssuePriority = "critical" | "high" | "medium" | "low";
 
+export interface RelatedIssue {
+  number: number;
+  title: string;
+  url: string;
+}
+
 export interface IssueClassification {
   category: IssueCategory;
   priority: IssuePriority;
@@ -26,6 +32,7 @@ export interface IssueClassification {
   summary: string;
   suggestedLabels: string[];
   reasoning: string;
+  relatedIssues?: RelatedIssue[];
 }
 
 export interface RepoConfig {
@@ -33,6 +40,7 @@ export interface RepoConfig {
   features: {
     classify: boolean;
     reply: boolean;
+    duplicateSearch: boolean;
   };
   labelMapping: Record<string, string[]>;
   security: {
@@ -57,7 +65,7 @@ export interface PipelineResult {
 }
 
 export interface PipelineError {
-  step: "classify" | "label" | "reply";
+  step: "classify" | "label" | "reply" | "duplicate";
   message: string;
   cause?: Error;
 }

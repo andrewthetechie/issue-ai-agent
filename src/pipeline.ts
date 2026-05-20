@@ -7,6 +7,8 @@ import { sanitizeIssueBody, sanitizeIssueTitle } from "./sanitizer.js";
 import { classifyIssue } from "./classifier.js";
 import { draftReply } from "./replier.js";
 import { resolveLabels, applyLabels } from "./github/labels.js";
+import { searchSimilarIssues } from "./github/search.js";
+import { detectDuplicates } from "./duplicate.js";
 
 function shouldExclude(
   context: Context<"issues.opened">,
@@ -119,6 +121,30 @@ export async function runPipeline(
       result.errors.push({
         step: "classify",
         message: "Classification failed",
+        cause: error instanceof Error ? error : new Error(String(error)),
+      });
+    }
+  }
+
+  if (config.features.duplicateSearch && llmClient) {
+    try {
+      const candidates = await searchSimilarIssues(
+        context, sanitizedTitle, issue.number,
+      );
+      if (candidates.length > 0) {
+        log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
+        const duplicates = await detectDuplicates(
+          issue, candidates, llmClient, config, log,
+        );
+        if (result.classification) {
+          result.classification.relatedIssues = duplicates;
+        }
+        log.info({ duplicateCount: duplicates.length }, "Duplicate detection completed");
+      }
+    } catch (error) {
+      result.errors.push({
+        step: "duplicate",
+        message: "Duplicate detection failed",
         cause: error instanceof Error ? error : new Error(String(error)),
       });
     }
