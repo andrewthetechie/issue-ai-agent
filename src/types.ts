@@ -70,3 +70,48 @@ export interface PipelineError {
   message: string;
   cause?: Error;
 }
+
+export interface Logger {
+  info(msgOrObj: unknown, msg?: string): void;
+  warn(msgOrObj: unknown, msg?: string): void;
+  error(msgOrObj: unknown, msg?: string): void;
+  debug(msgOrObj: unknown, msg?: string): void;
+  child(bindings: Record<string, unknown>): Logger;
+}
+
+export interface ActionContext {
+  owner: string;
+  repo: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  octokit: any;
+  logger: Logger;
+  configPath?: string;
+  eventName: "issues" | "issue_comment";
+  payload: {
+    action: string;
+    issue: {
+      number: number;
+      title: string;
+      body: string | null;
+      html_url: string;
+      user?: { login: string; type?: string };
+      labels?: Array<{ name: string; id: number }>;
+      created_at: string;
+      pull_request?: unknown;
+    };
+    comment?: {
+      id: number;
+      body: string | null;
+      html_url: string;
+      user?: { login: string };
+      created_at: string;
+    };
+    sender?: { login: string; type?: string };
+    repository: {
+      name: string;
+      owner: { login: string };
+      default_branch: string;
+    };
+    [key: string]: unknown;
+  };
+}

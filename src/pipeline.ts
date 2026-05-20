@@ -1,5 +1,4 @@
-import type { Context } from "probot";
-import type { GitHubIssue, PipelineResult, RepoConfig } from "./types.js";
+import type { ActionContext, GitHubIssue, Logger, PipelineResult, RepoConfig } from "./types.js";
 import { createProvider, detectProvider } from "./llm/factory.js";
 import type { ProviderName } from "./llm/factory.js";
 import { loadConfig } from "./config/loader.js";
@@ -11,10 +10,10 @@ import { searchSimilarIssues } from "./github/search.js";
 import { detectDuplicates } from "./duplicate.js";
 
 function shouldExclude(
-  context: Context<"issues.opened">,
+  payload: ActionContext["payload"],
   config: RepoConfig,
 ): boolean {
-  const issue = context.payload.issue;
+  const issue = payload.issue;
   const existingLabels = (issue.labels ?? []).map((l: { name: string }) => l.name);
 
   if (issue.user && config.exclude.users.includes(issue.user.login)) {
@@ -31,7 +30,7 @@ function shouldExclude(
 }
 
 export async function runPipeline(
-  context: Context<"issues.opened">,
+  actx: ActionContext,
 ): Promise<PipelineResult> {
   const result: PipelineResult = {
     classification: null,
@@ -40,11 +39,11 @@ export async function runPipeline(
     errors: [],
   };
 
-  const log = context.log;
+  const log: Logger = actx.logger;
 
   let config: RepoConfig;
   try {
-    config = await loadConfig(context);
+    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
   } catch (error) {
     log.error({ err: error }, "Failed to load config");
     result.errors.push({
@@ -60,21 +59,21 @@ export async function runPipeline(
     return result;
   }
 
-  if (shouldExclude(context, config)) {
+  if (shouldExclude(actx.payload, config)) {
     log.info("Issue excluded by config, skipping");
     return result;
   }
 
   const issue: GitHubIssue = {
-    number: context.payload.issue.number,
-    title: context.payload.issue.title,
-    body: context.payload.issue.body ?? null,
-    html_url: context.payload.issue.html_url,
-    user: { login: context.payload.issue.user?.login ?? "unknown" },
-    labels: (context.payload.issue.labels ?? []).map(
+    number: actx.payload.issue.number,
+    title: actx.payload.issue.title,
+    body: actx.payload.issue.body ?? null,
+    html_url: actx.payload.issue.html_url,
+    user: { login: actx.payload.issue.user?.login ?? "unknown" },
+    labels: (actx.payload.issue.labels ?? []).map(
       (l: { name: string; id: number }) => ({ name: l.name, id: l.id }),
     ),
-    created_at: context.payload.issue.created_at,
+    created_at: actx.payload.issue.created_at,
   };
 
   const sanitizedTitle = sanitizeIssueTitle(issue.title);
@@ -108,7 +107,10 @@ export async function runPipeline(
 
       try {
         const labels = resolveLabels(result.classification, config);
-        result.labelsApplied = await applyLabels(context, labels);
+        result.labelsApplied = await applyLabels(
+          actx.owner, actx.repo, actx.payload.issue.number,
+          labels, actx.octokit, actx.logger,
+        );
         log.info({ labels: result.labelsApplied }, "Labels applied");
       } catch (error) {
         result.errors.push({
@@ -129,7 +131,7 @@ export async function runPipeline(
   if (config.features.duplicateSearch && llmClient) {
     try {
       const candidates = await searchSimilarIssues(
-        context, sanitizedTitle, issue.number,
+        actx.owner, actx.repo, sanitizedTitle, issue.number, actx.octokit,
       );
       if (candidates.length > 0) {
         log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
@@ -185,9 +187,12 @@ export async function runPipeline(
         );
       }
 
-      await context.octokit.rest.issues.createComment(
-        context.issue({ body: replyBody }),
-      );
+      await actx.octokit.rest.issues.createComment({
+        owner: actx.owner,
+        repo: actx.repo,
+        issue_number: actx.payload.issue.number,
+        body: replyBody,
+      });
       result.replyPosted = true;
       log.info("Reply comment posted");
     } catch (error) {

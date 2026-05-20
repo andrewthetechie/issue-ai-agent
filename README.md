@@ -1,8 +1,8 @@
 # Issue AI Agent
 
-AI-powered GitHub Issue triage bot — automatically classifies, labels, and replies to new issues.
+AI-powered GitHub Issue triage Action — automatically classifies, labels, and replies to new issues.
 
-> **Status**: Phase 1 MVP (Classification + Auto-Reply). Self-hosted, BYOK (Bring Your Own Key).
+> **Status**: Phase 1 (Classification + Auto-Reply). GitHub Action, BYOK (Bring Your Own Key).
 
 ## What It Does
 
@@ -10,7 +10,9 @@ When someone opens an issue in your repository, Issue AI Agent:
 
 1. **Classifies** the issue into a category (bug, feature, question, docs, duplicate, invalid, security)
 2. **Labels** it with matching labels and a priority level (critical, high, medium, low)
-3. **Replies** with a contextual comment — bugs get asked for reproduction steps, features get acknowledged, etc.
+3. **Detects duplicates** by searching existing issues and linking potential matches
+4. **Replies** with a contextual comment — bugs get asked for reproduction steps, features get acknowledged, etc.
+5. **Handles follow-up comments** — replies to user comments with relevant information
 
 All in ~8 seconds, powered by Claude or GPT.
 
@@ -56,85 +58,55 @@ All in ~8 seconds, powered by Claude or GPT.
 
 ## Quick Start
 
-### Prerequisites
+### Step 1: Add a workflow file
 
-- Node.js >= 20.18.1 or >= 22
-- An Anthropic or OpenAI API key
-- A GitHub account with permission to create GitHub Apps
+Create `.github/workflows/issue-ai.yml` in your repository:
 
-### Step 1: Create a GitHub App
+```yaml
+name: Issue AI Agent
 
-1. Go to **Settings > Developer settings > GitHub Apps > New GitHub App**
-2. Fill in:
-   - **GitHub App name**: anything you like (e.g., `my-issue-bot`)
-   - **Homepage URL**: your repo URL
-   - **Webhook URL**: your server URL, or `https://smee.io/<your-channel>` for local dev
-   - **Webhook secret**: pick a secret (use `development` for local testing)
-3. Set **Repository permissions**:
-   - **Issues** → Read & Write
-   - **Contents** → Read-only (to load repo config)
-   - **Metadata** → Read-only
-4. Subscribe to **Issues** and **Issue comment** events
-5. Click **Create GitHub App**
-6. Note the **App ID** and generate a **Private Key** (.pem file)
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
 
-### Step 2: Install the App
-
-On the app's settings page, click **Install App** and select the repositories you want it to manage.
-
-### Step 3: Deploy
-
-```bash
-git clone https://github.com/alexyan0431/issue-ai-agent.git
-cd issue-ai-agent
-npm ci
-cp .env.example .env
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: alexyan0431/issue-ai-agent@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-Edit `.env`:
+### Step 2: Add your API key as a repository secret
 
-```env
-APP_ID=your-app-id
-WEBHOOK_SECRET=your-webhook-secret
-PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
-...
------END RSA PRIVATE KEY-----"
-ANTHROPIC_API_KEY=sk-ant-...    # or OPENAI_API_KEY=sk-...
-LOG_LEVEL=info
-```
+Go to **Settings > Secrets and variables > Actions > New repository secret**:
 
-Build and run:
+- Name: `ANTHROPIC_API_KEY`
+- Value: your Anthropic API key (get one at [console.anthropic.com](https://console.anthropic.com))
 
-```bash
-npm run build
-npm start
-```
+### Step 3: Open an issue
 
-### Step 4: Local Development (Optional)
-
-For local webhook testing, use [smee.io](https://smee.io/) to proxy webhooks:
-
-```bash
-# Terminal 1: proxy webhooks to localhost
-npx smee-client -u https://smee.io/<your-channel> -t http://localhost:3000/api/github/webhooks
-
-# Terminal 2: run the bot
-npm run build && npm start
-```
+That's it. The bot will automatically classify, label, and reply to new issues.
 
 ## Configuration
 
-Create `.github/issue-ai.yml` in any repository where the bot is installed. The bot works out of the box with sensible defaults — no config file required.
+Create `.github/issue-ai.yml` in your repository to customize behavior. The bot works out of the box with sensible defaults — no config file required.
 
 ```yaml
 # .github/issue-ai.yml
 enabled: true
 
 features:
-  classify: true       # Auto-classify issues
-  reply: true          # Post AI-drafted replies
-  duplicateSearch: true # Detect duplicate issues
-  commentReply: true    # Reply to follow-up comments
+  classify: true        # Auto-classify issues
+  reply: true           # Post AI-drafted replies
+  duplicateSearch: true  # Detect duplicate issues
+  commentReply: true     # Reply to follow-up comments
 
 label_mapping:
   bug: ["bug"]
@@ -175,26 +147,63 @@ llm:
 | `llm.model` | `claude-haiku-4-5-20251001` | Model identifier (use `gpt-4o-mini` for OpenAI) |
 | `llm.max_tokens` | `2048` | Max tokens for LLM responses |
 
-## Environment Variables
+## Action Inputs
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `APP_ID` | Yes | GitHub App ID |
-| `WEBHOOK_SECRET` | Yes | Webhook secret for signature verification |
-| `PRIVATE_KEY` | Yes | GitHub App private key (PEM format) |
-| `ANTHROPIC_API_KEY` | No* | Anthropic API key |
-| `OPENAI_API_KEY` | No* | OpenAI API key |
-| `WEBHOOK_PROXY_URL` | No | Webhook proxy URL (e.g., smee.io channel) |
-| `LOG_LEVEL` | No | Log verbosity: `debug`, `info`, `warn`, `error` (default: `debug`) |
-| `PORT` | No | Server port (default: `3000`) |
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `github-token` | No | `${{ github.token }}` | GitHub token for API access |
+| `anthropic-api-key` | No | | Anthropic API key for Claude |
+| `openai-api-key` | No | | OpenAI API key |
+| `llm-provider` | No | `anthropic` | Which LLM provider to use |
+| `llm-base-url` | No | | Custom base URL for OpenAI-compatible APIs |
+| `config-path` | No | `.github/issue-ai.yml` | Path to config file in repo |
 
-*\*At least one API key is required for production. If neither is set, the bot runs in **dev mode** with mock responses. The `llm.provider` config selects which to use; if unset, it auto-detects from available env vars.*
+At least one API key is required. If neither is set, the bot runs in **dev mode** with mock responses.
+
+### Action Outputs
+
+| Output | Description |
+|--------|-------------|
+| `category` | Classified issue category |
+| `priority` | Classified issue priority |
+| `labels-applied` | Comma-separated list of applied labels |
+| `reply-posted` | Whether a reply comment was posted |
+
+## Using OpenAI
+
+```yaml
+steps:
+  - uses: alexyan0431/issue-ai-agent@v1
+    with:
+      openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+      llm-provider: openai
+```
+
+### Using OpenAI-compatible APIs (GLM, DeepSeek, etc.)
+
+```yaml
+steps:
+  - uses: alexyan0431/issue-ai-agent@v1
+    with:
+      openai-api-key: ${{ secrets.LLM_API_KEY }}
+      llm-provider: openai
+      llm-base-url: https://open.bigmodel.cn/api/paas/v4
+```
+
+And in `.github/issue-ai.yml`:
+
+```yaml
+llm:
+  provider: openai
+  model: gpt-4o-mini
+```
 
 ## Development
 
 ```bash
 npm ci              # Install dependencies
 npm run build       # Compile TypeScript
+npm run bundle      # Bundle for GitHub Action (dist/index.js)
 npm test            # Run tests (Vitest)
 npm run test:watch  # Watch mode
 npm run dev         # TypeScript watch mode
@@ -203,27 +212,19 @@ npm run dev         # TypeScript watch mode
 ### Architecture
 
 ```
-GitHub Webhook (issues.opened)
-  → classify  — LLM classifies the issue (category + priority)
-  → label     — Maps classification to repo labels via GitHub API
-  → duplicate — Searches similar issues, LLM confirms duplicates
-  → reply     — Drafts and posts a contextual comment via LLM
-
-GitHub Webhook (issue_comment.created)
-  → reply     — Drafts follow-up reply based on issue context + comment
+GitHub Action (issues.opened / issue_comment.created)
+  → loadConfig()    — Fetch .github/issue-ai.yml via GitHub API
+  → shouldExclude() — Check exclude rules
+  → classify        — LLM classifies the issue (category + priority)
+  → label           — Maps classification to repo labels via GitHub API
+  → duplicate       — Searches similar issues, LLM confirms duplicates
+  → reply           — Drafts and posts a contextual comment via LLM
 ```
 
 Key design decisions:
 - **Stateless** — no database; reads config from each repo's `.github/issue-ai.yml`
 - **Error-resilient** — each pipeline step catches its own errors, so a classification failure doesn't block the reply
 - **Security-first** — input sanitization (zero-width chars, control chars, length limits) + explicit untrusted-data markers in prompts
-
-## Roadmap
-
-- [x] **Phase 1**: Issue classification + auto-reply (current)
-- [ ] **Phase 2**: Bug sandbox reproduction
-- [ ] **Phase 3**: Auto-fix PR via mini-swe-agent
-- [ ] **Phase 4**: GitHub Marketplace, i18n, Ollama support
 
 ## License
 

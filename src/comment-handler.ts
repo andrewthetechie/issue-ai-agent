@@ -1,5 +1,4 @@
-import type { Context } from "probot";
-import type { RepoConfig } from "./types.js";
+import type { ActionContext, RepoConfig } from "./types.js";
 import { loadConfig } from "./config/loader.js";
 import { sanitizeIssueBody, sanitizeIssueTitle } from "./sanitizer.js";
 import { createProvider, detectProvider } from "./llm/factory.js";
@@ -10,32 +9,34 @@ const MAX_COMMENT_REPLY_LENGTH = 4000;
 const MAX_COMMENT_LENGTH = 5000;
 
 export async function handleComment(
-  context: Context<"issue_comment.created">,
+  actx: ActionContext,
 ): Promise<void> {
-  if (context.isBot) {
+  if (actx.payload.sender?.type === "Bot") {
     return;
   }
 
-  const issue = context.payload.issue;
+  const issue = actx.payload.issue;
 
   if (issue.pull_request) {
     return;
   }
 
-  const comment = context.payload.comment;
-  const { owner, repo } = context.repo();
+  const comment = actx.payload.comment;
+  if (!comment) {
+    return;
+  }
   const issueNumber = issue.number;
 
-  context.log.info(
-    { owner, repo, issueNumber, commentAuthor: comment.user?.login },
+  actx.logger.info(
+    { owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login },
     "Comment created on issue",
   );
 
   let config: RepoConfig;
   try {
-    config = await loadConfig(context);
+    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
   } catch (error) {
-    context.log.error({ err: error }, "Failed to load config for comment handler");
+    actx.logger.error({ err: error }, "Failed to load config for comment handler");
     return;
   }
 
@@ -50,10 +51,10 @@ export async function handleComment(
   const commentBody = (comment.body ?? "").slice(0, MAX_COMMENT_LENGTH);
 
   const providerName = (config.llm.provider ?? detectProvider()) as ProviderName;
-  const llmClient = createProvider(providerName, context.log);
+  const llmClient = createProvider(providerName, actx.logger);
 
   if (!llmClient) {
-    context.log.warn("No LLM API key configured, skipping comment reply");
+    actx.logger.warn("No LLM API key configured, skipping comment reply");
     return;
   }
 
@@ -88,12 +89,15 @@ export async function handleComment(
       replyText = replyText.substring(0, MAX_COMMENT_REPLY_LENGTH) + "\n\n... (reply truncated)";
     }
 
-    await context.octokit.rest.issues.createComment(
-      context.issue({ body: replyText }),
-    );
+    await actx.octokit.rest.issues.createComment({
+      owner: actx.owner,
+      repo: actx.repo,
+      issue_number: issueNumber,
+      body: replyText,
+    });
 
-    context.log.info({ issueNumber, replyLength: replyText.length }, "Comment reply posted");
+    actx.logger.info({ issueNumber, replyLength: replyText.length }, "Comment reply posted");
   } catch (error) {
-    context.log.error({ err: error, issueNumber }, "Failed to post comment reply");
+    actx.logger.error({ err: error, issueNumber }, "Failed to post comment reply");
   }
 }

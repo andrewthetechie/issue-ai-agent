@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { Logger } from "pino";
+import type { Logger } from "../types.js";
 import type { LLMMessage, LLMResponse } from "./types.js";
 import type { LLMProvider } from "./provider.js";
 
@@ -7,8 +7,8 @@ export class OpenAIProvider implements LLMProvider {
   private client: OpenAI;
   private logger: Logger;
 
-  constructor(apiKey: string, logger: Logger) {
-    this.client = new OpenAI({ apiKey });
+  constructor(apiKey: string, logger: Logger, baseURL?: string) {
+    this.client = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
     this.logger = logger.child({ module: "llm" });
   }
 

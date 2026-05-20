@@ -1,4 +1,4 @@
-import type { Logger } from "pino";
+import type { Logger } from "./types.js";
 import type { GitHubIssue, IssueClassification, RepoConfig } from "./types.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { REPLY_SYSTEM_PROMPT, buildReplyUserMessage } from "./prompts/reply.js";

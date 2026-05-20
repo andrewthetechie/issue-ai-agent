@@ -1,0 +1,40 @@
+name: "Issue AI Agent"
+description: "AI-powered GitHub Issue triage: classify, label, detect duplicates, and reply"
+author: "alexyan0431"
+
+inputs:
+  github-token:
+    description: "GitHub token for API access"
+    required: false
+    default: "${{ github.token }}"
+  anthropic-api-key:
+    description: "Anthropic API key for Claude"
+    required: false
+  openai-api-key:
+    description: "OpenAI API key"
+    required: false
+  llm-provider:
+    description: "LLM provider to use (anthropic or openai)"
+    required: false
+    default: "anthropic"
+  llm-base-url:
+    description: "Custom base URL for OpenAI-compatible API (e.g. https://open.bigmodel.cn/api/paas/v4)"
+    required: false
+  config-path:
+    description: "Path to the config YAML file in the repo"
+    required: false
+    default: ".github/issue-ai.yml"
+
+outputs:
+  category:
+    description: "Classified issue category"
+  priority:
+    description: "Classified issue priority"
+  labels-applied:
+    description: "Comma-separated list of applied labels"
+  reply-posted:
+    description: "Whether a reply comment was posted"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"

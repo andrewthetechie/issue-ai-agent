@@ -1,13 +1,13 @@
-import type { Context } from "probot";
 import type { RelatedIssue } from "../types.js";
 
 export async function searchSimilarIssues(
-  context: Context<"issues.opened">,
+  owner: string,
+  repo: string,
   title: string,
   issueNumber: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  octokit: any,
 ): Promise<RelatedIssue[]> {
-  const { owner, repo } = context.repo();
-
   const query = buildSearchQuery(title, owner, repo);
 
   const keywords = query.split("in:title ")[1]?.trim();
@@ -15,7 +15,7 @@ export async function searchSimilarIssues(
     return [];
   }
 
-  const response = await context.octokit.rest.search.issuesAndPullRequests({
+  const response = await octokit.rest.search.issuesAndPullRequests({
     q: query,
     per_page: 5,
     sort: "updated",
@@ -23,8 +23,8 @@ export async function searchSimilarIssues(
   });
 
   return response.data.items
-    .filter((item) => item.number !== issueNumber && !item.pull_request)
-    .map((item) => ({
+    .filter((item: { number: number; pull_request?: unknown }) => item.number !== issueNumber && !item.pull_request)
+    .map((item: { number: number; title: string; html_url: string }) => ({
       number: item.number,
       title: item.title,
       url: item.html_url,

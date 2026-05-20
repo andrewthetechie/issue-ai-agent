@@ -1,4 +1,4 @@
-import type { Logger } from "pino";
+import type { Logger } from "../types.js";
 import type { LLMProvider } from "./provider.js";
 import { AnthropicProvider } from "./client.js";
 import { OpenAIProvider } from "./openai.js";
@@ -12,7 +12,8 @@ export function createProvider(
   if (provider === "openai") {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return null;
-    return new OpenAIProvider(apiKey, logger);
+    const baseURL = process.env.OPENAI_BASE_URL;
+    return new OpenAIProvider(apiKey, logger, baseURL);
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

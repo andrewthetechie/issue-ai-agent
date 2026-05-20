@@ -1,12 +1,37 @@
-import type { Context } from "probot";
+import yaml from "js-yaml";
 import type { RepoConfig } from "../types.js";
 import { DEFAULT_CONFIG } from "./schema.js";
 
 export async function loadConfig(
-  context: Context<"issues.opened"> | Context<"issue_comment.created">,
+  owner: string,
+  repo: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  octokit: any,
+  configPath: string = ".github/issue-ai.yml",
 ): Promise<RepoConfig> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const repoConfig: any = await context.config("issue-ai.yml");
+  let repoConfig: any;
+
+  try {
+    const { data } = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path: configPath,
+    });
+
+    if ("content" in data && typeof data.content === "string") {
+      const yamlText = Buffer.from(data.content, "base64").toString("utf-8");
+      repoConfig = yaml.load(yamlText);
+    } else {
+      return DEFAULT_CONFIG;
+    }
+  } catch (error: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((error as any).status === 404) {
+      return DEFAULT_CONFIG;
+    }
+    throw error;
+  }
 
   if (!repoConfig) {
     return DEFAULT_CONFIG;

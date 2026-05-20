@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runPipeline } from "../src/pipeline.js";
-import type { Context } from "probot";
+import type { ActionContext } from "../src/types.js";
 import { createProvider } from "../src/llm/factory.js";
+import { DEFAULT_CONFIG } from "../src/config/schema.js";
 
 // Mock LLM factory to avoid real API calls
 vi.mock("../src/llm/factory.js", () => ({
@@ -44,7 +45,22 @@ vi.mock("../src/github/search.js", () => ({
   searchSimilarIssues: vi.fn().mockResolvedValue([]),
 }));
 
-function createMockContext(overrides: Record<string, unknown> = {}): Context<"issues.opened"> {
+// Mock config loader — inline default config to avoid hoisting issues
+vi.mock("../src/config/loader.js", () => ({
+  loadConfig: vi.fn().mockResolvedValue({
+    enabled: true,
+    features: { classify: true, reply: true, duplicateSearch: true, commentReply: true },
+    labelMapping: {
+      bug: ["bug"], feature: ["enhancement"], question: ["question"],
+      docs: ["documentation"], duplicate: ["duplicate"], invalid: ["invalid"], security: ["security"],
+    },
+    security: { maxIssueLength: 10000 },
+    exclude: { labels: ["wontfix", "skip-ai"], users: ["dependabot[bot]"] },
+    llm: { provider: "anthropic", model: "claude-haiku-4-5-20251001", maxTokens: 2048 },
+  }),
+}));
+
+function createMockActionContext(overrides: Record<string, unknown> = {}): ActionContext {
   const mockLog = {
     info: vi.fn(),
     error: vi.fn(),
@@ -64,10 +80,18 @@ function createMockContext(overrides: Record<string, unknown> = {}): Context<"is
           data: { items: [] },
         }),
       },
+      repos: {
+        getContent: vi.fn().mockRejectedValue({ status: 404 }),
+      },
     },
   };
 
-  const context = {
+  return {
+    owner: "owner",
+    repo: "repo",
+    octokit: mockOctokit,
+    logger: mockLog,
+    eventName: "issues",
     payload: {
       action: "opened",
       issue: {
@@ -75,29 +99,19 @@ function createMockContext(overrides: Record<string, unknown> = {}): Context<"is
         title: "App crashes when clicking save",
         body: "Steps to reproduce:\n1. Open app\n2. Click save\n3. Crash",
         html_url: "https://github.com/owner/repo/issues/1",
-        user: { login: "testuser" },
+        user: { login: "testuser", type: "User" },
         labels: [],
         created_at: "2026-05-18T00:00:00Z",
       },
+      sender: { login: "testuser", type: "User" },
       repository: {
         name: "repo",
         owner: { login: "owner" },
         default_branch: "main",
-        clone_url: "https://github.com/owner/repo.git",
       },
-      installation: { id: 2 },
-      sender: { login: "testuser" },
     },
-    repo: vi.fn(() => ({ owner: "owner", repo: "repo" })),
-    issue: vi.fn((data) => ({ owner: "owner", repo: "repo", ...data })),
-    log: mockLog,
-    octokit: mockOctokit,
-    config: vi.fn().mockResolvedValue(null),
-    isBot: false,
     ...overrides,
-  } as unknown as Context<"issues.opened">;
-
-  return context;
+  } as unknown as ActionContext;
 }
 
 describe("runPipeline", () => {
@@ -108,45 +122,52 @@ describe("runPipeline", () => {
   });
 
   it("skips when bot is disabled", async () => {
-    const context = createMockContext({
-      config: vi.fn().mockResolvedValue({ enabled: false }),
-    });
+    const { loadConfig } = await import("../src/config/loader.js");
+    vi.mocked(loadConfig).mockResolvedValueOnce({ ...DEFAULT_CONFIG, enabled: false });
 
-    const result = await runPipeline(context);
+    const actx = createMockActionContext();
+    const result = await runPipeline(actx);
     expect(result.classification).toBeNull();
     expect(result.labelsApplied).toEqual([]);
     expect(result.replyPosted).toBe(false);
   });
 
   it("skips excluded users", async () => {
-    const context = createMockContext();
-    (context.payload as Record<string, unknown>).issue = {
-      ...context.payload.issue,
-      user: { login: "dependabot[bot]" },
-    };
+    const actx = createMockActionContext({
+      payload: {
+        ...createMockActionContext().payload,
+        issue: {
+          ...createMockActionContext().payload.issue,
+          user: { login: "dependabot[bot]", type: "Bot" },
+        },
+      },
+    });
 
-    const result = await runPipeline(context);
+    const result = await runPipeline(actx);
     expect(result.classification).toBeNull();
   });
 
   it("skips issues with excluded labels", async () => {
-    const context = createMockContext();
-    (context.payload as Record<string, unknown>).issue = {
-      ...context.payload.issue,
-      labels: [{ name: "skip-ai", id: 1 }],
-    };
+    const actx = createMockActionContext({
+      payload: {
+        ...createMockActionContext().payload,
+        issue: {
+          ...createMockActionContext().payload.issue,
+          labels: [{ name: "skip-ai", id: 1 }],
+        },
+      },
+    });
 
-    const result = await runPipeline(context);
+    const result = await runPipeline(actx);
     expect(result.classification).toBeNull();
   });
 
   it("runs in dev mode when no LLM API key is set", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     vi.mocked(createProvider).mockReturnValueOnce(null as any);
-    const context = createMockContext();
+    const actx = createMockActionContext();
 
-    const result = await runPipeline(context);
-    // Dev mode uses mock classification instead of erroring
+    const result = await runPipeline(actx);
     expect(result.classification).not.toBeNull();
     expect(result.classification?.category).toBe("bug");
     expect(result.classification?.summary).toContain("[DEV MODE]");
@@ -154,12 +175,9 @@ describe("runPipeline", () => {
   });
 
   it("loads config and runs full pipeline with defaults", async () => {
-    const context = createMockContext({
-      config: vi.fn().mockResolvedValue(null),
-    });
+    const actx = createMockActionContext();
 
-    const result = await runPipeline(context);
-    expect(context.config).toHaveBeenCalledWith("issue-ai.yml");
+    const result = await runPipeline(actx);
     expect(result.classification).not.toBeNull();
     expect(result.classification?.category).toBe("bug");
     expect(result.labelsApplied.length).toBeGreaterThan(0);
@@ -199,9 +217,9 @@ describe("runPipeline", () => {
     };
     vi.mocked(createProvider).mockReturnValueOnce(mockProvider as any);
 
-    const context = createMockContext();
+    const actx = createMockActionContext();
 
-    const result = await runPipeline(context);
+    const result = await runPipeline(actx);
     expect(result.classification?.category).toBe("duplicate");
     expect(result.classification?.relatedIssues).toEqual([
       { number: 42, title: "Same crash", url: "https://github.com/owner/repo/issues/42" },

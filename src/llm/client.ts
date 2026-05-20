@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Logger } from "pino";
+import type { Logger } from "../types.js";
 import type { LLMMessage, LLMResponse } from "./types.js";
 import type { LLMProvider } from "./provider.js";
 
