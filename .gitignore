@@ -6,3 +6,4 @@ coverage/
 tsconfig.tsbuildinfo
 .claude/
 TUTORIAL.md
+DESIGN.md
