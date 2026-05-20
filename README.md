@@ -2,8 +2,6 @@
 
 AI-powered GitHub Issue triage Action — automatically classifies, labels, and replies to new issues.
 
-> **Status**: Phase 1 (Classification + Auto-Reply). GitHub Action, BYOK (Bring Your Own Key).
-
 ## What It Does
 
 When someone opens an issue in your repository, Issue AI Agent:
@@ -14,7 +12,7 @@ When someone opens an issue in your repository, Issue AI Agent:
 4. **Replies** with a contextual comment — bugs get asked for reproduction steps, features get acknowledged, etc.
 5. **Handles follow-up comments** — replies to user comments with relevant information
 
-All in ~8 seconds, powered by Claude or GPT.
+All in ~8 seconds, powered by your LLM of choice.
 
 ## Demo
 
@@ -83,7 +81,7 @@ jobs:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-### Step 2: Add your API key as a repository secret
+### Step 2: Add your API key
 
 Go to **Settings > Secrets and variables > Actions > New repository secret**:
 
@@ -93,6 +91,57 @@ Go to **Settings > Secrets and variables > Actions > New repository secret**:
 ### Step 3: Open an issue
 
 That's it. The bot will automatically classify, label, and reply to new issues.
+
+## LLM Providers
+
+The bot supports any Anthropic or OpenAI API. Use the three inputs — `<provider>-api-key`, `llm-provider`, and `llm-base-url` — to match your setup.
+
+### Anthropic
+
+```yaml
+- uses: alexyan0431/issue-ai-agent@v1
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    llm-provider: anthropic
+```
+
+### OpenAI
+
+```yaml
+- uses: alexyan0431/issue-ai-agent@v1
+  with:
+    openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+    llm-provider: openai
+```
+
+### Custom API endpoint
+
+If your provider exposes an Anthropic or OpenAI compatible API, point `llm-base-url` to its address:
+
+```yaml
+# Anthropic-compatible endpoint
+- uses: alexyan0431/issue-ai-agent@v1
+  with:
+    anthropic-api-key: ${{ secrets.LLM_API_KEY }}
+    llm-provider: anthropic
+    llm-base-url: https://your-provider.example.com/api/anthropic
+```
+
+```yaml
+# OpenAI-compatible endpoint
+- uses: alexyan0431/issue-ai-agent@v1
+  with:
+    openai-api-key: ${{ secrets.LLM_API_KEY }}
+    llm-provider: openai
+    llm-base-url: https://your-provider.example.com/v1
+```
+
+If you use a custom model, create `.github/issue-ai.yml` in your repo to specify it:
+
+```yaml
+llm:
+  model: your-model-name
+```
 
 ## Configuration
 
@@ -144,15 +193,17 @@ llm:
 | `exclude.labels` | `["wontfix", "skip-ai"]` | Skip issues carrying these labels |
 | `exclude.users` | `["dependabot[bot]"]` | Skip issues opened by these users |
 | `llm.provider` | `"anthropic"` | LLM provider: `"anthropic"` or `"openai"` |
-| `llm.model` | `claude-haiku-4-5-20251001` | Model identifier (use `gpt-4o-mini` for OpenAI) |
+| `llm.model` | `claude-haiku-4-5-20251001` | Model identifier |
 | `llm.max_tokens` | `2048` | Max tokens for LLM responses |
 
-## Action Inputs
+## Action Inputs & Outputs
+
+### Inputs
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `github-token` | No | `${{ github.token }}` | GitHub token for API access |
-| `anthropic-api-key` | No | | Anthropic API key for Claude |
+| `anthropic-api-key` | No | | Anthropic API key |
 | `openai-api-key` | No | | OpenAI API key |
 | `llm-provider` | No | `anthropic` | Which LLM provider to use |
 | `llm-base-url` | No | | Custom base URL for LLM API (applies to selected provider) |
@@ -160,7 +211,7 @@ llm:
 
 At least one API key is required. If neither is set, the bot runs in **dev mode** with mock responses.
 
-### Action Outputs
+### Outputs
 
 | Output | Description |
 |--------|-------------|
@@ -168,54 +219,6 @@ At least one API key is required. If neither is set, the bot runs in **dev mode*
 | `priority` | Classified issue priority |
 | `labels-applied` | Comma-separated list of applied labels |
 | `reply-posted` | Whether a reply comment was posted |
-
-## Using OpenAI
-
-```yaml
-steps:
-  - uses: alexyan0431/issue-ai-agent@v1
-    with:
-      openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-      llm-provider: openai
-```
-
-### Using OpenAI-compatible APIs (GLM, DeepSeek, etc.)
-
-```yaml
-steps:
-  - uses: alexyan0431/issue-ai-agent@v1
-    with:
-      openai-api-key: ${{ secrets.LLM_API_KEY }}
-      llm-provider: openai
-      llm-base-url: https://open.bigmodel.cn/api/paas/v4
-```
-
-And in `.github/issue-ai.yml`:
-
-```yaml
-llm:
-  provider: openai
-  model: gpt-4o-mini
-```
-
-### Using Anthropic-compatible APIs (GLM via cc-switch, etc.)
-
-```yaml
-steps:
-  - uses: alexyan0431/issue-ai-agent@v1
-    with:
-      anthropic-api-key: ${{ secrets.LLM_API_KEY }}
-      llm-provider: anthropic
-      llm-base-url: https://open.bigmodel.cn/api/anthropic
-```
-
-And in `.github/issue-ai.yml`:
-
-```yaml
-llm:
-  provider: anthropic
-  model: glm-5
-```
 
 ## Development
 
