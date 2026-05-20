@@ -1,4 +1,8 @@
 node_modules/
 lib/
+coverage/
 .env
 *.pem
+tsconfig.tsbuildinfo
+.claude/
+TUTORIAL.md
