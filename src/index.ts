@@ -1,5 +1,6 @@
 import { Probot } from "probot";
 import { runPipeline } from "./pipeline.js";
+import { handleComment } from "./comment-handler.js";
 
 export default (app: Probot) => {
   app.on("issues.opened", async (context) => {
@@ -30,5 +31,9 @@ export default (app: Probot) => {
     } catch (error) {
       context.log.error({ err: error, owner, repo, issueNumber }, "Unexpected pipeline failure");
     }
+  });
+
+  app.on("issue_comment.created", async (context) => {
+    await handleComment(context);
   });
 };

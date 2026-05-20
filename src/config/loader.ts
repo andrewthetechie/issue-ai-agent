@@ -3,7 +3,7 @@ import type { RepoConfig } from "../types.js";
 import { DEFAULT_CONFIG } from "./schema.js";
 
 export async function loadConfig(
-  context: Context<"issues.opened">,
+  context: Context<"issues.opened"> | Context<"issue_comment.created">,
 ): Promise<RepoConfig> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const repoConfig: any = await context.config("issue-ai.yml");
@@ -18,6 +18,7 @@ export async function loadConfig(
       classify: repoConfig.features?.classify ?? DEFAULT_CONFIG.features.classify,
       reply: repoConfig.features?.reply ?? DEFAULT_CONFIG.features.reply,
       duplicateSearch: repoConfig.features?.duplicateSearch ?? DEFAULT_CONFIG.features.duplicateSearch,
+      commentReply: repoConfig.features?.commentReply ?? DEFAULT_CONFIG.features.commentReply,
     },
     labelMapping: repoConfig.label_mapping ?? DEFAULT_CONFIG.labelMapping,
     security: {
