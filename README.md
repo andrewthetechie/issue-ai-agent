@@ -155,7 +155,7 @@ llm:
 | `anthropic-api-key` | No | | Anthropic API key for Claude |
 | `openai-api-key` | No | | OpenAI API key |
 | `llm-provider` | No | `anthropic` | Which LLM provider to use |
-| `llm-base-url` | No | | Custom base URL for OpenAI-compatible APIs |
+| `llm-base-url` | No | | Custom base URL for LLM API (applies to selected provider) |
 | `config-path` | No | `.github/issue-ai.yml` | Path to config file in repo |
 
 At least one API key is required. If neither is set, the bot runs in **dev mode** with mock responses.
@@ -196,6 +196,25 @@ And in `.github/issue-ai.yml`:
 llm:
   provider: openai
   model: gpt-4o-mini
+```
+
+### Using Anthropic-compatible APIs (GLM via cc-switch, etc.)
+
+```yaml
+steps:
+  - uses: alexyan0431/issue-ai-agent@v1
+    with:
+      anthropic-api-key: ${{ secrets.LLM_API_KEY }}
+      llm-provider: anthropic
+      llm-base-url: https://open.bigmodel.cn/api/anthropic
+```
+
+And in `.github/issue-ai.yml`:
+
+```yaml
+llm:
+  provider: anthropic
+  model: glm-5
 ```
 
 ## Development

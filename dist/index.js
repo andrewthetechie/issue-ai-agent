@@ -58137,8 +58137,8 @@ const { HUMAN_PROMPT, AI_PROMPT } = Anthropic;
 class AnthropicProvider {
     client;
     logger;
-    constructor(apiKey, logger) {
-        this.client = new Anthropic({ apiKey });
+    constructor(apiKey, logger, baseURL) {
+        this.client = new Anthropic({ apiKey, ...(baseURL ? { baseURL } : {}) });
         this.logger = logger.child({ module: "llm" });
     }
     async complete(model, systemPrompt, messages, maxTokens = 2048) {
@@ -68929,7 +68929,8 @@ function createProvider(provider, logger) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey)
         return null;
-    return new AnthropicProvider(apiKey, logger);
+    const baseURL = process.env.ANTHROPIC_BASE_URL;
+    return new AnthropicProvider(apiKey, logger, baseURL);
 }
 function detectProvider() {
     if (process.env.OPENAI_API_KEY)
@@ -73543,8 +73544,15 @@ async function main() {
     if (llmProvider)
         process.env.LLM_PROVIDER = llmProvider;
     const llmBaseURL = core.getInput("llm-base-url");
-    if (llmBaseURL)
-        process.env.OPENAI_BASE_URL = llmBaseURL;
+    if (llmBaseURL) {
+        const provider = llmProvider || "anthropic";
+        if (provider === "openai") {
+            process.env.OPENAI_BASE_URL = llmBaseURL;
+        }
+        else {
+            process.env.ANTHROPIC_BASE_URL = llmBaseURL;
+        }
+    }
     const octokit = github.getOctokit(token);
     const ctx = github.context;
     const { owner, repo } = ctx.repo;

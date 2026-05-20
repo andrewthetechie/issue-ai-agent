@@ -7,8 +7,8 @@ export class AnthropicProvider implements LLMProvider {
   private client: Anthropic;
   private logger: Logger;
 
-  constructor(apiKey: string, logger: Logger) {
-    this.client = new Anthropic({ apiKey });
+  constructor(apiKey: string, logger: Logger, baseURL?: string) {
+    this.client = new Anthropic({ apiKey, ...(baseURL ? { baseURL } : {}) });
     this.logger = logger.child({ module: "llm" });
   }
 

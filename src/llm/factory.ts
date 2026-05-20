@@ -18,7 +18,8 @@ export function createProvider(
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  return new AnthropicProvider(apiKey, logger);
+  const baseURL = process.env.ANTHROPIC_BASE_URL;
+  return new AnthropicProvider(apiKey, logger, baseURL);
 }
 
 export function detectProvider(): ProviderName {
