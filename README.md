@@ -12,7 +12,7 @@ When someone opens an issue in your repository, Issue AI Agent:
 2. **Labels** it with matching labels and a priority level (critical, high, medium, low)
 3. **Replies** with a contextual comment — bugs get asked for reproduction steps, features get acknowledged, etc.
 
-All in ~8 seconds, powered by Claude.
+All in ~8 seconds, powered by Claude or GPT.
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ All in ~8 seconds, powered by Claude.
    - **Issues** → Read & Write
    - **Contents** → Read-only (to load repo config)
    - **Metadata** → Read-only
-4. Subscribe to **Issues** events
+4. Subscribe to **Issues** and **Issue comment** events
 5. Click **Create GitHub App**
 6. Note the **App ID** and generate a **Private Key** (.pem file)
 
@@ -91,8 +91,10 @@ Create `.github/issue-ai.yml` in any repository where the bot is installed. The 
 enabled: true
 
 features:
-  classify: true    # Auto-classify issues
-  reply: true       # Post AI-drafted replies
+  classify: true       # Auto-classify issues
+  reply: true          # Post AI-drafted replies
+  duplicateSearch: true # Detect duplicate issues
+  commentReply: true    # Reply to follow-up comments
 
 label_mapping:
   bug: ["bug"]
@@ -123,6 +125,8 @@ llm:
 | `enabled` | `true` | Master on/off switch |
 | `features.classify` | `true` | Enable issue classification + labeling |
 | `features.reply` | `true` | Enable AI-drafted reply comments |
+| `features.duplicateSearch` | `true` | Search for duplicate issues and link them |
+| `features.commentReply` | `true` | Reply to follow-up comments on issues |
 | `label_mapping` | *(see defaults above)* | Maps AI categories to your repo's label names |
 | `security.max_issue_length` | `10000` | Truncate issue body beyond this length |
 | `exclude.labels` | `["wontfix", "skip-ai"]` | Skip issues carrying these labels |
@@ -162,7 +166,11 @@ npm run dev         # TypeScript watch mode
 GitHub Webhook (issues.opened)
   → classify  — LLM classifies the issue (category + priority)
   → label     — Maps classification to repo labels via GitHub API
+  → duplicate — Searches similar issues, LLM confirms duplicates
   → reply     — Drafts and posts a contextual comment via LLM
+
+GitHub Webhook (issue_comment.created)
+  → reply     — Drafts follow-up reply based on issue context + comment
 ```
 
 Key design decisions:

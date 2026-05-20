@@ -10,6 +10,11 @@ export async function searchSimilarIssues(
 
   const query = buildSearchQuery(title, owner, repo);
 
+  const keywords = query.split("in:title ")[1]?.trim();
+  if (!keywords) {
+    return [];
+  }
+
   const response = await context.octokit.rest.search.issuesAndPullRequests({
     q: query,
     per_page: 5,
