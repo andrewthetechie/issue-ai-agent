@@ -1,6 +1,17 @@
-# Issue AI Agent
+<div align="center">
 
-AI-powered GitHub Issue triage Action — automatically classifies, labels, and replies to new issues.
+# ⚡ Issue AI Agent
+
+**AI-powered GitHub Issue triage — classify, label, and reply automatically**
+
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Issue%20AI%20Agent-blue?logo=github&logoColor=white)](https://github.com/marketplace/actions/issue-ai-agent)
+[![GitHub Action](https://img.shields.io/github/actions/workflow/status/alexyan0431/issue-ai-agent/ci.yml?branch=main&label=CI&logo=github-actions&logoColor=white)](https://github.com/alexyan0431/issue-ai-agent/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](https://github.com/alexyan0431/issue-ai-agent/pulls)
+
+[Discuss on linux.do](https://linux.do)
+
+</div>
 
 ## What It Does
 
