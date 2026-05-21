@@ -16,43 +16,13 @@ All in ~8 seconds, powered by your LLM of choice.
 
 ## Demo
 
-**User submits an issue:**
+![Demo: Issue AI Agent classifying and replying to a new issue](docs/demo.gif)
 
-> **Login page crashes on Chrome** · opened by @user123
->
-> When I click the login button on Chrome 120, the page goes blank.
-> This only happens after the latest deploy.
-
-**Bot responds automatically (~8s):**
-
-> **Issue AI Agent** :robot: commented
->
-> Thanks for reporting this crash! I've classified and labeled this issue.
->
-> To help us reproduce, could you provide:
-> - Chrome version and OS
-> - Any console error messages
-> - Steps to reproduce
->
-> -- Issue AI Agent :robot:
-
-**Labels added:** `bug`, `priority:high`
-
-**Duplicate detected?** The bot also searches existing issues and links potential duplicates in the reply.
-
-**User follows up with more info:**
-
-> @user123 commented
->
-> I'm on Chrome 120.0.6099.130, macOS Sonoma. Console shows `TypeError: Cannot read properties of null`.
-
-**Bot replies to the comment:**
-
-> **Issue AI Agent** :robot: commented
->
-> Thanks for the details! The `TypeError: Cannot read properties of null` suggests the login handler may be receiving an undefined state after the deploy. We'll investigate.
->
-> -- Issue AI Agent :robot:
+1. **User opens an issue** — describes a login page crash
+2. **Bot classifies** — labels it `bug` / `priority: high` in ~8 seconds
+3. **Bot replies** — asks for reproduction details
+4. **Duplicate check** — searches existing issues and links potential matches
+5. **Follow-up comments** — replies to user comments with relevant info
 
 ## Quick Start
 
