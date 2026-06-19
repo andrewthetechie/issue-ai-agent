@@ -27,7 +27,7 @@ inputs:
   config-path:
     description: "Path to the config YAML file in the repo"
     required: false
-    default: ".github/issue-ai.yml"
+    default: ".forgejo/issue-ai.yml"
 
 outputs:
   category:
