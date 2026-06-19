@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSearchQuery } from "../src/github/search.js";
+import { buildSearchQuery } from "../src/forgejo/search.js";
 
 describe("buildSearchQuery", () => {
   it("builds query with keyword extraction", () => {
