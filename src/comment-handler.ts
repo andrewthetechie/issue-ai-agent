@@ -11,7 +11,24 @@ const MAX_COMMENT_LENGTH = 5000;
 export async function handleComment(
   actx: ActionContext,
 ): Promise<void> {
-  if (actx.payload.sender?.type === "Bot") {
+  // Skip comments from the action's own token (self-comment / PAT case) or
+  // from users listed in config.exclude.users. This is a defense-in-depth
+  // guard: Forgejo's platform-level recursion prevention stops the auto-token
+  // from triggering another issue_comment run, but this covers the PAT case.
+  if (actx.payload.sender?.login === actx.botLogin) {
+    return;
+  }
+
+  // Load config early to check sender against exclude.users
+  let config: RepoConfig;
+  try {
+    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
+  } catch (error) {
+    actx.logger.error({ err: error }, "Failed to load config for comment handler");
+    return;
+  }
+
+  if (config.exclude.users.includes(actx.payload.sender?.login ?? "")) {
     return;
   }
 
@@ -31,14 +48,6 @@ export async function handleComment(
     { owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login },
     "Comment created on issue",
   );
-
-  let config: RepoConfig;
-  try {
-    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
-  } catch (error) {
-    actx.logger.error({ err: error }, "Failed to load config for comment handler");
-    return;
-  }
 
   if (!config.enabled || !config.features.commentReply) {
     return;

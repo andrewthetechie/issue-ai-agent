@@ -89,15 +89,50 @@ describe("handleComment", () => {
     delete process.env.OPENAI_API_KEY;
   });
 
-  it("skips bot comments", async () => {
+  it("skips comments from botLogin (own-comment case)", async () => {
     const actx = createMockActionContext({
+      botLogin: "issue-ai-bot",
       payload: {
         ...basePayload,
-        sender: { login: "bot-account", type: "Bot" },
+        sender: { login: "issue-ai-bot" },
       },
     });
     await handleComment(actx);
     expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("skips comments from users in config.exclude.users", async () => {
+    const { loadConfig } = await import("../src/config/loader.js");
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      ...DEFAULT_CONFIG,
+      exclude: { ...DEFAULT_CONFIG.exclude, users: ["commenter"] },
+    });
+
+    const actx = createMockActionContext({
+      botLogin: "issue-ai-bot",
+      payload: {
+        ...basePayload,
+        sender: { login: "commenter" },
+      },
+    });
+    await handleComment(actx);
+    expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("posts a reply when sender is neither botLogin nor excluded", async () => {
+    const actx = createMockActionContext({
+      botLogin: "issue-ai-bot",
+      payload: {
+        ...basePayload,
+        sender: { login: "commenter" },
+      },
+    });
+
+    await handleComment(actx);
+
+    expect(actx.octokit.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const call = actx.octokit.rest.issues.createComment.mock.calls[0][0] as { body: string };
+    expect(call.body).toContain("Issue AI Agent");
   });
 
   it("skips comments on pull requests", async () => {
