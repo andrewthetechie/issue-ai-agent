@@ -11,7 +11,11 @@ const MAX_COMMENT_LENGTH = 5000;
 export async function handleComment(
   actx: ActionContext,
 ): Promise<void> {
-  if (actx.payload.sender?.type === "Bot") {
+  // Skip comments from the action's own token (self-comment / PAT case) or
+  // from users listed in config.exclude.users. This is a defense-in-depth
+  // guard: Forgejo's platform-level recursion prevention stops the auto-token
+  // from triggering another issue_comment run, but this covers the PAT case.
+  if (actx.payload.sender?.login === actx.botLogin) {
     return;
   }
 
