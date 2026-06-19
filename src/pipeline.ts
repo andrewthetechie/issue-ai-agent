@@ -5,8 +5,8 @@ import { loadConfig } from "./config/loader.js";
 import { sanitizeIssueBody, sanitizeIssueTitle } from "./sanitizer.js";
 import { classifyIssue } from "./classifier.js";
 import { draftReply } from "./replier.js";
-import { resolveLabels, applyLabels } from "./github/labels.js";
-import { searchSimilarIssues } from "./github/search.js";
+import { resolveLabels, applyLabels } from "./forgejo/labels.js";
+import { searchSimilarIssues } from "./forgejo/search.js";
 import { detectDuplicates } from "./duplicate.js";
 
 function shouldExclude(
