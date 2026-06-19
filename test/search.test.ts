@@ -103,7 +103,7 @@ describe("searchSimilarIssues", () => {
     expect(url).toContain("https://forgejo.example.com/api/v1/repos/issues/search");
   });
 
-  it("includes Authorization: Bearer header", async () => {
+  it("includes Authorization: token header", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve([]),
@@ -115,7 +115,7 @@ describe("searchSimilarIssues", () => {
     const [_url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(init?.headers).toBeDefined();
     const headers = init?.headers as Record<string, string>;
-    expect(headers["Authorization"]).toBe(`Bearer ${token}`);
+    expect(headers["Authorization"]).toBe(`token ${token}`);
   });
 
   it("filters out items from different repos", async () => {

@@ -31,7 +31,7 @@ export async function searchSimilarIssues(
 
   const response = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `token ${token}`,
     },
   });
 

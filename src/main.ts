@@ -67,7 +67,7 @@ export async function main(): Promise<void> {
   try {
     const healthResponse = await fetch(`${baseUrl}/api/v1/user`, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `token ${token}`,
       },
     });
     if (!healthResponse.ok) {
