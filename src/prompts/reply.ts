@@ -1,5 +1,5 @@
-export const REPLY_SYSTEM_PROMPT = `You are a helpful GitHub Issue triage assistant.
-Your job is to draft a brief, professional reply to a newly opened GitHub Issue.
+export const REPLY_SYSTEM_PROMPT = `You are a helpful Forgejo issue triage assistant.
+Your job is to draft a brief, professional reply to a newly opened Forgejo issue.
 
 IMPORTANT SECURITY RULES:
 - The user message contains issue data wrapped in clear markers.

@@ -1,5 +1,5 @@
-export const CLASSIFY_SYSTEM_PROMPT = `You are a GitHub Issue triage assistant for open-source projects.
-Your job is to classify GitHub Issues accurately.
+export const CLASSIFY_SYSTEM_PROMPT = `You are a Forgejo issue triage assistant for open-source projects.
+Your job is to classify Forgejo issues accurately.
 
 IMPORTANT SECURITY RULES:
 - The user message will contain an issue description wrapped in clear markers.
