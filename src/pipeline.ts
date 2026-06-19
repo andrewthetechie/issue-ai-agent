@@ -1,4 +1,4 @@
-import type { ActionContext, GitHubIssue, Logger, PipelineResult, RepoConfig } from "./types.js";
+import type { ActionContext, Issue, Logger, PipelineResult, RepoConfig } from "./types.js";
 import { createProvider, detectProvider } from "./llm/factory.js";
 import type { ProviderName } from "./llm/factory.js";
 import { loadConfig } from "./config/loader.js";
@@ -64,7 +64,7 @@ export async function runPipeline(
     return result;
   }
 
-  const issue: GitHubIssue = {
+  const issue: Issue = {
     number: actx.payload.issue.number,
     title: actx.payload.issue.title,
     body: actx.payload.issue.body ?? null,
