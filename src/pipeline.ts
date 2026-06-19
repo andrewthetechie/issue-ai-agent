@@ -131,7 +131,7 @@ export async function runPipeline(
   if (config.features.duplicateSearch && llmClient) {
     try {
       const candidates = await searchSimilarIssues(
-        actx.owner, actx.repo, sanitizedTitle, issue.number, actx.octokit,
+        actx.owner, actx.repo, sanitizedTitle, issue.number, actx.serverUrl, actx.token,
       );
       if (candidates.length > 0) {
         log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
