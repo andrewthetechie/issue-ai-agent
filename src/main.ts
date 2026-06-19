@@ -22,7 +22,7 @@ function createActionLogger(): Logger {
   return logger;
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const token = core.getInput("github-token") || process.env.GITHUB_TOKEN;
   if (!token) {
     core.setFailed("github-token input or GITHUB_TOKEN env var is required");
@@ -49,12 +49,25 @@ async function main(): Promise<void> {
   }
 
   const octokit = github.getOctokit(token);
+
+  let botLogin: string;
+  try {
+    const { data } = await octokit.rest.users.getAuthenticated();
+    botLogin = data.login;
+  } catch (error) {
+    core.setFailed(
+      `Failed to resolve bot identity: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return;
+  }
+
   const ctx = github.context;
   const { owner, repo } = ctx.repo;
 
   const actx: ActionContext = {
     owner,
     repo,
+    botLogin,
     octokit,
     logger: createActionLogger(),
     configPath,
@@ -84,4 +97,6 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}
