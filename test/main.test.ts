@@ -143,11 +143,26 @@ describe("main", () => {
   });
 
   describe("bot identity resolution", () => {
+    let originalFetch: typeof global.fetch;
+
+    beforeEach(() => {
+      originalFetch = global.fetch;
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
     it("sets botLogin from getAuthenticated response", async () => {
       const mockGetAuthenticated = mockOctokit.rest.users.getAuthenticated;
       mockGetAuthenticated.mockResolvedValueOnce({
         data: { login: "forgejo-bot" },
       });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ login: "forgejo-bot" }),
+      }) as unknown as typeof global.fetch;
 
       await main();
 
@@ -181,9 +196,52 @@ describe("main", () => {
         "Failed to resolve bot identity: some-string-error",
       );
     });
+
+    it("fails when startup health-check GET /api/v1/user returns non-200", async () => {
+      const mockGetAuthenticated = mockOctokit.rest.users.getAuthenticated;
+      mockGetAuthenticated.mockResolvedValueOnce({
+        data: { login: "forgejo-bot" },
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+      }) as unknown as typeof global.fetch;
+
+      await main();
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining("Startup health-check failed"),
+      );
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("fails when startup health-check GET /api/v1/user throws", async () => {
+      const mockGetAuthenticated = mockOctokit.rest.users.getAuthenticated;
+      mockGetAuthenticated.mockResolvedValueOnce({
+        data: { login: "forgejo-bot" },
+      });
+
+      global.fetch = vi.fn().mockRejectedValue(new Error("network error")) as unknown as typeof global.fetch;
+
+      await main();
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining("Startup health-check failed"),
+      );
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
   });
 
   describe("event routing", () => {
+    beforeEach(() => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ login: "forgejo-bot" }),
+      }) as unknown as typeof global.fetch;
+    });
+
     it("handles issues event", async () => {
       (mockContext.eventName as string) = "issues";
       mockContext.payload = {

@@ -26,11 +26,12 @@ export async function searchSimilarIssues(
     return [];
   }
 
-  const url = `${serverUrl}/api/v1/repos/issues/search?q=${encodeURIComponent(keywords)}&owner=${encodeURIComponent(owner)}&type=issues&state=open&limit=5`;
+  const baseUrl = serverUrl.replace(/\/$/, '');
+  const url = `${baseUrl}/api/v1/repos/issues/search?q=${encodeURIComponent(keywords)}&owner=${encodeURIComponent(owner)}&type=issues&state=open&limit=5`;
 
   const response = await fetch(url, {
     headers: {
-      Authorization: `token ${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
