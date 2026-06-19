@@ -19,6 +19,19 @@ export async function handleComment(
     return;
   }
 
+  // Load config early to check sender against exclude.users
+  let config: RepoConfig;
+  try {
+    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
+  } catch (error) {
+    actx.logger.error({ err: error }, "Failed to load config for comment handler");
+    return;
+  }
+
+  if (config.exclude.users.includes(actx.payload.sender?.login ?? "")) {
+    return;
+  }
+
   const issue = actx.payload.issue;
 
   if (issue.pull_request) {
@@ -35,14 +48,6 @@ export async function handleComment(
     { owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login },
     "Comment created on issue",
   );
-
-  let config: RepoConfig;
-  try {
-    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
-  } catch (error) {
-    actx.logger.error({ err: error }, "Failed to load config for comment handler");
-    return;
-  }
 
   if (!config.enabled || !config.features.commentReply) {
     return;
