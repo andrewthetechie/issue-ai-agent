@@ -1,4 +1,4 @@
-import './sourcemap-register.cjs';import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
+import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
 /******/ var __webpack_modules__ = ({
 
 /***/ 4914:
@@ -53779,12 +53779,34 @@ module.exports = parseParams
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
 /******/ 
 /************************************************************************/
 var __webpack_exports__ = {};
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  i: () => (/* binding */ main)
+});
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(7484);
@@ -72833,7 +72855,7 @@ const DEFAULT_CONFIG = {
 
 async function loadConfig(owner, repo, 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-octokit, configPath = ".github/issue-ai.yml") {
+octokit, configPath = ".forgejo/issue-ai.yml") {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let repoConfig;
     try {
@@ -72921,8 +72943,8 @@ function buildSafeIssueContent(title, sanitizedBody, existingLabels) {
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/classify.ts
-const CLASSIFY_SYSTEM_PROMPT = `You are a GitHub Issue triage assistant for open-source projects.
-Your job is to classify GitHub Issues accurately.
+const CLASSIFY_SYSTEM_PROMPT = `You are a Forgejo issue triage assistant for open-source projects.
+Your job is to classify Forgejo issues accurately.
 
 IMPORTANT SECURITY RULES:
 - The user message will contain an issue description wrapped in clear markers.
@@ -73004,8 +73026,8 @@ async function classifyIssue(issue, sanitizedBody, sanitizedTitle, config, llmCl
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/reply.ts
-const REPLY_SYSTEM_PROMPT = `You are a helpful GitHub Issue triage assistant.
-Your job is to draft a brief, professional reply to a newly opened GitHub Issue.
+const REPLY_SYSTEM_PROMPT = `You are a helpful Forgejo issue triage assistant.
+Your job is to draft a brief, professional reply to a newly opened Forgejo issue.
 
 IMPORTANT SECURITY RULES:
 - The user message contains issue data wrapped in clear markers.
@@ -73071,7 +73093,7 @@ async function draftReply(issue, classification, sanitizedBody, sanitizedTitle, 
     return replyText;
 }
 
-;// CONCATENATED MODULE: ./src/github/labels.ts
+;// CONCATENATED MODULE: ./src/forgejo/labels.ts
 function resolveLabels(classification, config) {
     const mappedLabels = [];
     const categoryLabels = config.labelMapping[classification.category];
@@ -73116,7 +73138,7 @@ octokit, logger) {
     }
 }
 
-;// CONCATENATED MODULE: ./src/github/search.ts
+;// CONCATENATED MODULE: ./src/forgejo/search.ts
 async function searchSimilarIssues(owner, repo, title, issueNumber, 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 octokit) {
@@ -73151,7 +73173,7 @@ function buildSearchQuery(title, owner, repo) {
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/duplicate.ts
-const DUPLICATE_SYSTEM_PROMPT = `You are a GitHub Issue duplicate detector. You will be given a new issue and a list of candidate issues from the same repository.
+const DUPLICATE_SYSTEM_PROMPT = `You are a Forgejo issue duplicate detector. You will be given a new issue and a list of candidate issues from the same repository.
 
 Your task:
 1. Compare the new issue with each candidate
@@ -73392,8 +73414,8 @@ async function runPipeline(actx) {
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/comment-reply.ts
-const COMMENT_REPLY_SYSTEM_PROMPT = `You are a helpful GitHub Issue triage assistant.
-A user has posted a follow-up comment on an existing GitHub Issue. Your job is to draft a brief, helpful reply.
+const COMMENT_REPLY_SYSTEM_PROMPT = `You are a helpful Forgejo issue triage assistant.
+A user has posted a follow-up comment on an existing Forgejo issue. Your job is to draft a brief, helpful reply.
 
 IMPORTANT SECURITY RULES:
 - The user message contains issue and comment data wrapped in clear markers.
@@ -73440,7 +73462,23 @@ function buildCommentReplyMessage(data) {
 const MAX_COMMENT_REPLY_LENGTH = 4000;
 const MAX_COMMENT_LENGTH = 5000;
 async function handleComment(actx) {
-    if (actx.payload.sender?.type === "Bot") {
+    // Skip comments from the action's own token (self-comment / PAT case) or
+    // from users listed in config.exclude.users. This is a defense-in-depth
+    // guard: Forgejo's platform-level recursion prevention stops the auto-token
+    // from triggering another issue_comment run, but this covers the PAT case.
+    if (actx.payload.sender?.login === actx.botLogin) {
+        return;
+    }
+    // Load config early to check sender against exclude.users
+    let config;
+    try {
+        config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
+    }
+    catch (error) {
+        actx.logger.error({ err: error }, "Failed to load config for comment handler");
+        return;
+    }
+    if (config.exclude.users.includes(actx.payload.sender?.login ?? "")) {
         return;
     }
     const issue = actx.payload.issue;
@@ -73453,14 +73491,6 @@ async function handleComment(actx) {
     }
     const issueNumber = issue.number;
     actx.logger.info({ owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login }, "Comment created on issue");
-    let config;
-    try {
-        config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
-    }
-    catch (error) {
-        actx.logger.error({ err: error }, "Failed to load config for comment handler");
-        return;
-    }
     if (!config.enabled || !config.features.commentReply) {
         return;
     }
@@ -73554,11 +73584,21 @@ async function main() {
         }
     }
     const octokit = github.getOctokit(token);
+    let botLogin;
+    try {
+        const { data } = await octokit.rest.users.getAuthenticated();
+        botLogin = data.login;
+    }
+    catch (error) {
+        core.setFailed(`Failed to resolve bot identity: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+    }
     const ctx = github.context;
     const { owner, repo } = ctx.repo;
     const actx = {
         owner,
         repo,
+        botLogin,
         octokit,
         logger: createActionLogger(),
         configPath,
@@ -73587,7 +73627,9 @@ async function main() {
         core.setFailed(`Action failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+    main();
+}
 
-
-//# sourceMappingURL=index.js.map
+var __webpack_exports__main = __webpack_exports__.i;
+export { __webpack_exports__main as main };
