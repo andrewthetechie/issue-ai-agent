@@ -67,7 +67,7 @@ export async function main(): Promise<void> {
   const actx: ActionContext = {
     owner,
     repo,
-    serverUrl: process.env.GITHUB_SERVER_URL ?? "https://github.com",
+    serverUrl: process.env.FORGEJO_SERVER_URL ?? process.env.GITHUB_SERVER_URL ?? "https://github.com",
     token,
     botLogin,
     octokit,

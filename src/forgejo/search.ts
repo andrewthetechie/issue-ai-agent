@@ -35,6 +35,7 @@ export async function searchSimilarIssues(
   });
 
   if (!response.ok) {
+    console.error(`Search failed: ${response.status} ${response.statusText}`);
     return [];
   }
 

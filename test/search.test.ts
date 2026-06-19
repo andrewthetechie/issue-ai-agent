@@ -41,7 +41,7 @@ describe("buildSearchKeywords", () => {
   });
 
   it("contains none of the GitHub qualifiers", () => {
-    const keywords = buildSearchKeywords("Login page crashes on Chrome 120", "owner", "repo");
+    const keywords = buildSearchKeywords("Login page crashes on Chrome 120");
     expect(keywords).not.toContain("repo:");
     expect(keywords).not.toContain("is:issue");
     expect(keywords).not.toContain("is:open");
