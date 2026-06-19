@@ -2,14 +2,10 @@
 
 # ⚡ Issue AI Agent
 
-**AI-powered GitHub Issue triage — classify, label, and reply automatically**
+**AI-powered Forgejo Issue triage — classify, label, and reply automatically**
 
-[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Issue%20AI%20Agent-blue?logo=github&logoColor=white)](https://github.com/marketplace/actions/issue-ai-agent)
-[![GitHub Action](https://img.shields.io/github/actions/workflow/status/alexyan0431/issue-ai-agent/ci.yml?branch=main&label=CI&logo=github-actions&logoColor=white)](https://github.com/alexyan0431/issue-ai-agent/actions)
+[![Forgejo Action](https://img.shields.io/github/actions/workflow/status/andrewthetechie/issue-ai-agent/ci.yml?branch=main&label=CI&logo=github-actions&logoColor=white)](https://github.com/andrewthetechie/issue-ai-agent/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](https://github.com/alexyan0431/issue-ai-agent/pulls)
-
-[Discuss on linux.do](https://linux.do)
 
 </div>
 
@@ -23,7 +19,7 @@ When someone opens an issue in your repository, Issue AI Agent:
 4. **Replies** with a contextual comment — bugs get asked for reproduction steps, features get acknowledged, etc.
 5. **Handles follow-up comments** — replies to user comments with relevant information
 
-All in ~8 seconds, powered by your LLM of choice.
+Powered by your LLM of choice.
 
 ## Demo
 
@@ -39,7 +35,7 @@ All in ~8 seconds, powered by your LLM of choice.
 
 ### Step 1: Add a workflow file
 
-Create `.github/workflows/issue-ai.yml` in your repository:
+Create `.forgejo/workflows/issue-ai.yml` in your repository:
 
 ```yaml
 name: Issue AI Agent
@@ -57,7 +53,7 @@ jobs:
       issues: write
       contents: read
     steps:
-      - uses: alexyan0431/issue-ai-agent@v1
+      - uses: andrewthetechie/issue-ai-agent@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -80,7 +76,7 @@ The bot supports any Anthropic or OpenAI API. Use the three inputs — `<provide
 ### Anthropic
 
 ```yaml
-- uses: alexyan0431/issue-ai-agent@v1
+- uses: andrewthetechie/issue-ai-agent@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     llm-provider: anthropic
@@ -89,7 +85,7 @@ The bot supports any Anthropic or OpenAI API. Use the three inputs — `<provide
 ### OpenAI
 
 ```yaml
-- uses: alexyan0431/issue-ai-agent@v1
+- uses: andrewthetechie/issue-ai-agent@v1
   with:
     openai-api-key: ${{ secrets.OPENAI_API_KEY }}
     llm-provider: openai
@@ -101,7 +97,7 @@ If your provider exposes an Anthropic or OpenAI compatible API, point `llm-base-
 
 ```yaml
 # Anthropic-compatible endpoint
-- uses: alexyan0431/issue-ai-agent@v1
+- uses: andrewthetechie/issue-ai-agent@v1
   with:
     anthropic-api-key: ${{ secrets.LLM_API_KEY }}
     llm-provider: anthropic
@@ -110,7 +106,7 @@ If your provider exposes an Anthropic or OpenAI compatible API, point `llm-base-
 
 ```yaml
 # OpenAI-compatible endpoint
-- uses: alexyan0431/issue-ai-agent@v1
+- uses: andrewthetechie/issue-ai-agent@v1
   with:
     openai-api-key: ${{ secrets.LLM_API_KEY }}
     llm-provider: openai
