@@ -203,16 +203,18 @@ describe("searchSimilarIssues", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("returns empty array when response is not ok", async () => {
+  it("throws when response is not ok", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
+      statusText: "Internal Server Error",
+      text: () => Promise.resolve("error details"),
     });
     global.fetch = mockFetch as unknown as typeof global.fetch;
 
-    const results = await searchSimilarIssues(owner, repo, "test keyword", issueNumber, serverUrl, token);
-
-    expect(results).toEqual([]);
+    await expect(
+      searchSimilarIssues(owner, repo, "test keyword", issueNumber, serverUrl, token),
+    ).rejects.toThrow("Search API failed: 500 Internal Server Error");
   });
 
   it("maps results to RelatedIssue shape with number, title, url", async () => {

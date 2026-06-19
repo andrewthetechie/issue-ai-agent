@@ -35,8 +35,8 @@ export async function searchSimilarIssues(
   });
 
   if (!response.ok) {
-    console.error(`Search failed: ${response.status} ${response.statusText}`);
-    return [];
+    const body = await response.text();
+    throw new Error(`Search API failed: ${response.status} ${response.statusText} — ${body}`);
   }
 
   const data = await response.json();
