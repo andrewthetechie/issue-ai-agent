@@ -3,6 +3,7 @@ import * as github from "@actions/github";
 import type { ActionContext, Logger } from "./types.js";
 import { runPipeline } from "./pipeline.js";
 import { handleComment } from "./comment-handler.js";
+import { normalizeServerUrl } from "./utils.js";
 
 function formatMessage(msgOrObj: unknown, msg?: string): string {
   return typeof msgOrObj === "string"
@@ -59,8 +60,9 @@ export async function main(): Promise<void> {
     );
     return;
   }
+  const normalizedServerUrl = normalizeServerUrl(serverUrl);
   const octokit = github.getOctokit(token, {
-    baseUrl: `${serverUrl}/api/v1`,
+    baseUrl: `${normalizedServerUrl}/api/v1`,
   });
 
   let botLogin: string;
@@ -90,7 +92,7 @@ export async function main(): Promise<void> {
 
   try {
     if (actx.eventName === "issues") {
-      const result = await runPipeline(actx, serverUrl, token);
+      const result = await runPipeline(actx, normalizedServerUrl, token);
 
       core.setOutput("category", result.classification?.category ?? "");
       core.setOutput("priority", result.classification?.priority ?? "");

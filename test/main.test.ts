@@ -305,10 +305,19 @@ describe("main", () => {
 
  describe("Octokit baseUrl wiring", () => {
     it("calls getOctokit with baseUrl option set to <serverUrl>/api/v1", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ login: "forgejo-bot" }),
-      }) as unknown as typeof global.fetch;
+      const getInput = vi.mocked(core.getInput);
+      getInput.mockImplementation((name: string) => {
+        const map: Record<string, string> = {
+          "forgejo-token": "test-token",
+          "anthropic-api-key": "",
+          "openai-api-key": "",
+          "llm-provider": "",
+          "config-path": "",
+          "llm-base-url": "",
+          "forgejo-server-url": "https://github.com",
+        };
+        return map[name] ?? "";
+      });
 
       await main();
 

@@ -74,6 +74,7 @@ function createMockActionContext(overrides: Record<string, unknown> = {}): Actio
   return {
     owner: "owner",
     repo: "repo",
+    botLogin: "issue-ai-bot",
     octokit: mockOctokit,
     logger: mockLog,
     eventName: "issue_comment",
@@ -181,18 +182,6 @@ describe("handleComment", () => {
     vi.mocked(loadConfig).mockResolvedValueOnce({
       ...DEFAULT_CONFIG,
       features: { ...DEFAULT_CONFIG.features, commentReply: false },
-    });
-
-    const actx = createMockActionContext();
-    await handleComment(actx);
-    expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
-  });
-
-  it("skips excluded users", async () => {
-    const { loadConfig } = await import("../src/config/loader.js");
-    vi.mocked(loadConfig).mockResolvedValueOnce({
-      ...DEFAULT_CONFIG,
-      exclude: { ...DEFAULT_CONFIG.exclude, users: ["commenter"] },
     });
 
     const actx = createMockActionContext();

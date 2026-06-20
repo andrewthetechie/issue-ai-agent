@@ -83,15 +83,14 @@ export async function runPipeline(
 
   const providerName = (config.llm.provider ?? detectProvider()) as ProviderName;
   const llmClient = createProvider(providerName, log);
-  const devMode = !llmClient;
 
-  if (devMode) {
+  if (!llmClient) {
     log.warn("No LLM API key configured — running in dev mode with mock responses");
   }
 
   if (config.features.classify) {
     try {
-      if (devMode || !llmClient) {
+      if (!llmClient) {
         result.classification = {
           category: "bug" as const,
           priority: "medium" as const,
@@ -157,7 +156,7 @@ export async function runPipeline(
   if (config.features.reply) {
     try {
       let replyBody: string;
-      if (devMode || !llmClient) {
+      if (!llmClient) {
         const classification = result.classification ?? {
           category: "question" as const,
           priority: "medium" as const,

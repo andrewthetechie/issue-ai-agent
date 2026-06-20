@@ -1,7 +1,7 @@
 import type { RelatedIssue } from "../types.js";
 import { normalizeServerUrl } from "../utils.js";
 
-export const STOP_WORDS = new Set(["the", "and", "for", "not", "but", "are", "was", "has", "this", "that", "with", "from", "into", "can", "all", "its", "our"]);
+const STOP_WORDS = new Set(["the", "and", "for", "not", "but", "are", "was", "has", "this", "that", "with", "from", "into", "can", "all", "its", "our"]);
 
 export function buildSearchKeywords(title: string): string {
   const words = title

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { buildSearchKeywords, searchSimilarIssues, STOP_WORDS } from "../src/forgejo/search.js";
+import { buildSearchKeywords, searchSimilarIssues } from "../src/forgejo/search.js";
 
 describe("buildSearchKeywords", () => {
   it("extracts plain keywords from title", () => {
