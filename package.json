@@ -2,7 +2,7 @@
   "name": "issue-ai-agent",
   "version": "0.2.0",
   "private": true,
-  "description": "AI-powered GitHub Issue triage and auto-reply Action",
+  "description": "AI-powered Forgejo issue triage and auto-reply Action",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
