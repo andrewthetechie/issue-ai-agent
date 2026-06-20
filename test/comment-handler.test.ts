@@ -149,6 +149,33 @@ describe("handleComment", () => {
     expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
+  it("does NOT call loadConfig for comments on pull requests", async () => {
+    const { loadConfig } = await import("../src/config/loader.js");
+    const actx = createMockActionContext({
+      payload: {
+        ...basePayload,
+        issue: {
+          ...basePayload.issue,
+          pull_request: { url: "https://api.github.com/repos/owner/repo/pulls/5" },
+        },
+      },
+    });
+    await handleComment(actx);
+    expect(loadConfig).not.toHaveBeenCalled();
+  });
+
+  it("does NOT call loadConfig when there is no comment payload", async () => {
+    const { loadConfig } = await import("../src/config/loader.js");
+    const actx = createMockActionContext({
+      payload: {
+        ...basePayload,
+        comment: undefined,
+      },
+    });
+    await handleComment(actx);
+    expect(loadConfig).not.toHaveBeenCalled();
+  });
+
   it("skips when commentReply is disabled", async () => {
     const { loadConfig } = await import("../src/config/loader.js");
     vi.mocked(loadConfig).mockResolvedValueOnce({

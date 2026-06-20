@@ -11,15 +11,37 @@ const MAX_COMMENT_LENGTH = 5000;
 export async function handleComment(
   actx: ActionContext,
 ): Promise<void> {
-  // Skip comments from the action's own token (self-comment / PAT case) or
-  // from users listed in config.exclude.users. This is a defense-in-depth
-  // guard: Forgejo's platform-level recursion prevention stops the auto-token
-  // from triggering another issue_comment run, but this covers the PAT case.
+  // Cheap structural checks — no network calls yet.
+
+  // Skip comments from the action's own token (self-comment / PAT case).
+  // This is a defense-in-depth guard: Forgejo's platform-level recursion
+  // prevention stops the auto-token from triggering another issue_comment run,
+  // but this covers the PAT case.
   if (actx.payload.sender?.login === actx.botLogin) {
     return;
   }
 
-  // Load config early to check sender against exclude.users
+  const issue = actx.payload.issue;
+
+  // Skip comments on pull requests — not an issue.
+  if (issue.pull_request) {
+    return;
+  }
+
+  // Skip events without a comment payload.
+  const comment = actx.payload.comment;
+  if (!comment) {
+    return;
+  }
+
+  const issueNumber = issue.number;
+
+  actx.logger.info(
+    { owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login },
+    "Comment created on issue",
+  );
+
+  // Load config only after cheap structural checks pass.
   let config: RepoConfig;
   try {
     config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
@@ -28,28 +50,12 @@ export async function handleComment(
     return;
   }
 
-  if (config.exclude.users.includes(actx.payload.sender?.login ?? "")) {
-    return;
-  }
-
-  const issue = actx.payload.issue;
-
-  if (issue.pull_request) {
-    return;
-  }
-
-  const comment = actx.payload.comment;
-  if (!comment) {
-    return;
-  }
-  const issueNumber = issue.number;
-
-  actx.logger.info(
-    { owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login },
-    "Comment created on issue",
-  );
-
   if (!config.enabled || !config.features.commentReply) {
+    return;
+  }
+
+  // Skip excluded users (both sender and comment author).
+  if (config.exclude.users.includes(actx.payload.sender?.login ?? "")) {
     return;
   }
 
