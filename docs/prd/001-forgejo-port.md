@@ -54,7 +54,7 @@ The GitHub-only query helper `buildSearchQuery` is replaced by `buildSearchKeywo
 Results are filtered client-side by `repository.full_name === "${owner}/${repo}"` to scope results to the triggering repo only, with the triggering issue number and any pull requests excluded. Authentication uses `Authorization: token <TOKEN>` (Forgejo's required header format, not Bearer).
 
 ### ActionContext changes
-`ActionContext` gains three new fields: `serverUrl: string`, `token: string`, and `botLogin: string`. All are set once at startup (alongside Octokit construction). `serverUrl` and `token` are threaded to the search module; `botLogin` is used by the comment handler's self-guard.
+`ActionContext` gains two new fields: `botLogin: string` (used by the comment handler's self-guard) and retains the existing fields. The token is intentionally **not** stored on `ActionContext` to avoid latent credential leaks if the context is ever logged, serialized, or debug-dumped. Instead, `serverUrl` and `token` are threaded as explicit parameters to `runPipeline` and then to `searchSimilarIssues`. The comment handler receives `ActionContext` but does not read `token` or `serverUrl`.
 
 `botLogin` is resolved once at startup via `octokit.rest.users.getAuthenticated()` (`GET /user`), which returns the login of the identity backing the token. If this call fails, the action fails (`core.setFailed`) rather than continuing without an identity — identity resolution is treated as a hard precondition. This means the issue-triage path also depends on `GET /user` succeeding, which is an accepted simplification (single startup identity resolution) given the auto token can always read `/user`.
 

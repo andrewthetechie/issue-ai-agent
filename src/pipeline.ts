@@ -31,6 +31,8 @@ function shouldExclude(
 
 export async function runPipeline(
   actx: ActionContext,
+  serverUrl: string,
+  token: string,
 ): Promise<PipelineResult> {
   const result: PipelineResult = {
     classification: null,
@@ -131,7 +133,7 @@ export async function runPipeline(
   if (config.features.duplicateSearch && llmClient) {
     try {
       const candidates = await searchSimilarIssues(
-        actx.owner, actx.repo, sanitizedTitle, issue.number, actx.serverUrl, actx.token,
+        actx.owner, actx.repo, sanitizedTitle, issue.number, serverUrl, token,
       );
       if (candidates.length > 0) {
         log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
