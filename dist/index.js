@@ -73138,12 +73138,8 @@ octokit, logger) {
     }
 }
 
-;// CONCATENATED MODULE: ./src/forgejo/url.ts
-/**
- * Normalizes a server URL by trimming a trailing slash (if present).
- * Used consistently across Forgejo-related modules.
- */
-function normalizeUrl(url) {
+;// CONCATENATED MODULE: ./src/utils.ts
+function normalizeServerUrl(url) {
     return url.replace(/\/$/, "");
 }
 
@@ -73164,7 +73160,7 @@ async function searchSimilarIssues(owner, repo, title, issueNumber, serverUrl, t
     if (!keywords) {
         return [];
     }
-    const baseUrl = normalizeUrl(serverUrl);
+    const baseUrl = normalizeServerUrl(serverUrl);
     const url = `${baseUrl}/api/v1/repos/issues/search?q=${encodeURIComponent(keywords)}&owner=${encodeURIComponent(owner)}&type=issues&state=open&limit=5`;
     const response = await fetch(url, {
         headers: {
@@ -73286,7 +73282,7 @@ function shouldExclude(payload, config) {
     }
     return false;
 }
-async function runPipeline(actx) {
+async function runPipeline(actx, serverUrl, token) {
     const result = {
         classification: null,
         labelsApplied: [],
@@ -73328,13 +73324,12 @@ async function runPipeline(actx) {
     const sanitizedBody = sanitizeIssueBody(issue.body, config);
     const providerName = (config.llm.provider ?? detectProvider());
     const llmClient = createProvider(providerName, log);
-    const devMode = !llmClient;
-    if (devMode) {
+    if (!llmClient) {
         log.warn("No LLM API key configured — running in dev mode with mock responses");
     }
     if (config.features.classify) {
         try {
-            if (devMode || !llmClient) {
+            if (!llmClient) {
                 result.classification = {
                     category: "bug",
                     priority: "medium",
@@ -73371,7 +73366,7 @@ async function runPipeline(actx) {
     }
     if (config.features.duplicateSearch && llmClient) {
         try {
-            const candidates = await searchSimilarIssues(actx.owner, actx.repo, sanitizedTitle, issue.number, actx.serverUrl, actx.token);
+            const candidates = await searchSimilarIssues(actx.owner, actx.repo, sanitizedTitle, issue.number, serverUrl, token);
             if (candidates.length > 0) {
                 log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
                 const duplicates = await detectDuplicates(issue, candidates, llmClient, config, log);
@@ -73392,7 +73387,7 @@ async function runPipeline(actx) {
     if (config.features.reply) {
         try {
             let replyBody;
-            if (devMode || !llmClient) {
+            if (!llmClient) {
                 const classification = result.classification ?? {
                     category: "question",
                     priority: "medium",
@@ -73485,14 +73480,27 @@ function buildCommentReplyMessage(data) {
 const MAX_COMMENT_REPLY_LENGTH = 4000;
 const MAX_COMMENT_LENGTH = 5000;
 async function handleComment(actx) {
-    // Skip comments from the action's own token (self-comment / PAT case) or
-    // from users listed in config.exclude.users. This is a defense-in-depth
-    // guard: Forgejo's platform-level recursion prevention stops the auto-token
-    // from triggering another issue_comment run, but this covers the PAT case.
+    // Cheap structural checks — no network calls yet.
+    // Skip comments from the action's own token (self-comment / PAT case).
+    // This is a defense-in-depth guard: Forgejo's platform-level recursion
+    // prevention stops the auto-token from triggering another issue_comment run,
+    // but this covers the PAT case.
     if (actx.payload.sender?.login === actx.botLogin) {
         return;
     }
-    // Load config early to check sender against exclude.users
+    const issue = actx.payload.issue;
+    // Skip comments on pull requests — not an issue.
+    if (issue.pull_request) {
+        return;
+    }
+    // Skip events without a comment payload.
+    const comment = actx.payload.comment;
+    if (!comment) {
+        return;
+    }
+    const issueNumber = issue.number;
+    actx.logger.info({ owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login }, "Comment created on issue");
+    // Load config only after cheap structural checks pass.
     let config;
     try {
         config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
@@ -73501,20 +73509,11 @@ async function handleComment(actx) {
         actx.logger.error({ err: error }, "Failed to load config for comment handler");
         return;
     }
-    if (config.exclude.users.includes(actx.payload.sender?.login ?? "")) {
-        return;
-    }
-    const issue = actx.payload.issue;
-    if (issue.pull_request) {
-        return;
-    }
-    const comment = actx.payload.comment;
-    if (!comment) {
-        return;
-    }
-    const issueNumber = issue.number;
-    actx.logger.info({ owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login }, "Comment created on issue");
     if (!config.enabled || !config.features.commentReply) {
+        return;
+    }
+    // Skip excluded users (both sender and comment author).
+    if (config.exclude.users.includes(actx.payload.sender?.login ?? "")) {
         return;
     }
     if (comment.user && config.exclude.users.includes(comment.user.login)) {
@@ -73607,10 +73606,18 @@ async function main() {
             process.env.ANTHROPIC_BASE_URL = llmBaseURL;
         }
     }
-    const serverUrlInput = core.getInput("forgejo-server-url");
-    const serverUrl = (process.env.FORGEJO_SERVER_URL ?? (serverUrlInput || process.env.GITHUB_SERVER_URL)) || "https://github.com";
-    const normalizedServerUrl = normalizeUrl(serverUrl);
-    const octokit = github.getOctokit(token, { baseUrl: `${normalizedServerUrl}/api/v1` });
+    const forgejoServerUrlInput = core.getInput("forgejo-server-url");
+    const serverUrl = forgejoServerUrlInput ||
+        process.env.FORGEJO_SERVER_URL ||
+        process.env.GITHUB_SERVER_URL;
+    if (!serverUrl) {
+        core.setFailed("forgejo-server-url input or FORGEJO_SERVER_URL / GITHUB_SERVER_URL environment variable is required");
+        return;
+    }
+    const normalizedServerUrl = normalizeServerUrl(serverUrl);
+    const octokit = github.getOctokit(token, {
+        baseUrl: `${normalizedServerUrl}/api/v1`,
+    });
     let botLogin;
     try {
         const { data } = await octokit.rest.users.getAuthenticated();
@@ -73620,30 +73627,11 @@ async function main() {
         core.setFailed(`Failed to resolve bot identity: ${error instanceof Error ? error.message : String(error)}`);
         return;
     }
-    // Startup health-check: verify the Forgejo/Gitea API is reachable via GET /api/v1/user
-    const baseUrl = normalizedServerUrl;
-    try {
-        const healthResponse = await fetch(`${baseUrl}/api/v1/user`, {
-            headers: {
-                Authorization: `token ${token}`,
-            },
-        });
-        if (!healthResponse.ok) {
-            core.setFailed(`Startup health-check failed: GET ${baseUrl}/api/v1/user returned ${healthResponse.status} ${healthResponse.statusText}`);
-            return;
-        }
-    }
-    catch (error) {
-        core.setFailed(`Startup health-check failed: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-    }
     const ctx = github.context;
     const { owner, repo } = ctx.repo;
     const actx = {
         owner,
         repo,
-        serverUrl,
-        token,
         botLogin,
         octokit,
         logger: createActionLogger(),
@@ -73653,7 +73641,7 @@ async function main() {
     };
     try {
         if (actx.eventName === "issues") {
-            const result = await runPipeline(actx);
+            const result = await runPipeline(actx, normalizedServerUrl, token);
             core.setOutput("category", result.classification?.category ?? "");
             core.setOutput("priority", result.classification?.priority ?? "");
             core.setOutput("labels-applied", result.labelsApplied.join(","));

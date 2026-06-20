@@ -96,7 +96,7 @@ export interface ActionContext {
       title: string;
       body: string | null;
       html_url: string;
-      user?: { login: string; type?: string };
+      user?: { login: string };
       labels?: Array<{ name: string; id: number }>;
       created_at: string;
       pull_request?: unknown;
@@ -108,7 +108,7 @@ export interface ActionContext {
       user?: { login: string };
       created_at: string;
     };
-    sender?: { login: string; type?: string };
+    sender?: { login: string };
     repository: {
       name: string;
       owner: { login: string };

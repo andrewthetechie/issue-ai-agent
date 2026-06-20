@@ -71,8 +71,6 @@ export interface Logger {
 export interface ActionContext {
     owner: string;
     repo: string;
-    serverUrl: string;
-    token: string;
     botLogin: string;
     octokit: any;
     logger: Logger;
@@ -87,7 +85,6 @@ export interface ActionContext {
             html_url: string;
             user?: {
                 login: string;
-                type?: string;
             };
             labels?: Array<{
                 name: string;
@@ -107,7 +104,6 @@ export interface ActionContext {
         };
         sender?: {
             login: string;
-            type?: string;
         };
         repository: {
             name: string;
