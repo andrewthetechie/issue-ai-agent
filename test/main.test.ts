@@ -9,7 +9,7 @@ vi.mock("@actions/core", async () => {
     ...actual,
     getInput: vi.fn((name: string) => {
       const map: Record<string, string> = {
-        "github-token": "test-token",
+        "forgejo-token": "test-token",
         "anthropic-api-key": "",
         "openai-api-key": "",
         "llm-provider": "",
@@ -258,10 +258,10 @@ describe("main", () => {
   });
 
   describe("token validation", () => {
-    it("fails when github-token input and GITHUB_TOKEN env are both missing", async () => {
+     it("fails when forgejo-token input and GITHUB_TOKEN env are both missing", async () => {
       const getInput = vi.mocked(core.getInput);
       getInput.mockImplementation((name: string) => {
-        if (name === "github-token") return "";
+        if (name === "forgejo-token") return "";
         return "";
       });
 
@@ -270,7 +270,7 @@ describe("main", () => {
       await main();
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        "github-token input or GITHUB_TOKEN env var is required",
+        "forgejo-token input or GITHUB_TOKEN env var is required",
       );
     });
   });
