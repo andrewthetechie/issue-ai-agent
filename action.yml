@@ -7,6 +7,10 @@ branding:
   color: "purple"
 
 inputs:
+  forgejo-server-url:
+    description: "URL of the Forgejo instance (defaults to the GitHub Actions server URL)"
+    required: false
+    default: "${{ github.server_url }}"
   forgejo-token:
     description: "Forgejo token for API access"
     required: false

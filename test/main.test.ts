@@ -15,6 +15,7 @@ vi.mock("@actions/core", async () => {
         "llm-provider": "",
         "config-path": "",
         "llm-base-url": "",
+        "forgejo-server-url": "https://github.com",
       };
       return map[name] ?? "";
     }),
@@ -75,7 +76,10 @@ const mockOctokit = {
 };
 
 vi.mock("@actions/github", () => ({
-  getOctokit: vi.fn(() => mockOctokit),
+  getOctokit: vi.fn((_token, options) => {
+    (mockOctokit as any).__baseUrl = options?.baseUrl;
+    return mockOctokit;
+  }),
   get context() {
     return mockContext;
   },
@@ -312,6 +316,48 @@ describe("main", () => {
 
       expect(core.setFailed).not.toHaveBeenCalled();
       expect(core.warning).toHaveBeenCalledWith("Unsupported event: push");
+    });
+
+    it("passes forgejo-server-url input to Octokit baseUrl", async () => {
+      const getInput = vi.mocked(core.getInput);
+      getInput.mockImplementation((name: string) => {
+        const map: Record<string, string> = {
+          "forgejo-token": "test-token",
+          "anthropic-api-key": "",
+          "openai-api-key": "",
+          "llm-provider": "",
+          "config-path": "",
+          "llm-base-url": "",
+          "forgejo-server-url": "https://forgejo.example.com",
+        };
+        return map[name] ?? "";
+      });
+
+      await main();
+
+      expect(core.setFailed).not.toHaveBeenCalled();
+      expect(github.getOctokit).toHaveBeenCalledWith(
+        "test-token",
+        expect.objectContaining({ baseUrl: "https://forgejo.example.com/api/v1" }),
+      );
+    });
+
+    it("fails when forgejo-server-url input and all env vars are empty", async () => {
+      const getInput = vi.mocked(core.getInput);
+      getInput.mockImplementation((name: string) => {
+        if (name === "forgejo-token") return "test-token";
+        if (name === "forgejo-server-url") return "";
+        return "";
+      });
+
+      delete process.env.FORGEJO_SERVER_URL;
+      delete process.env.GITHUB_SERVER_URL;
+
+      await main();
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        "forgejo-server-url input or FORGEJO_SERVER_URL / GITHUB_SERVER_URL environment variable is required",
+      );
     });
   });
 

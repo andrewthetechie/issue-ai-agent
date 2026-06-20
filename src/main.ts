@@ -48,8 +48,20 @@ export async function main(): Promise<void> {
     }
   }
 
-  const serverUrl = process.env.FORGEJO_SERVER_URL ?? process.env.GITHUB_SERVER_URL ?? "https://github.com";
-  const octokit = github.getOctokit(token);
+  const forgejoServerUrlInput = core.getInput("forgejo-server-url");
+  const serverUrl =
+    forgejoServerUrlInput ||
+    process.env.FORGEJO_SERVER_URL ||
+    process.env.GITHUB_SERVER_URL;
+  if (!serverUrl) {
+    core.setFailed(
+      "forgejo-server-url input or FORGEJO_SERVER_URL / GITHUB_SERVER_URL environment variable is required",
+    );
+    return;
+  }
+  const octokit = github.getOctokit(token, {
+    baseUrl: `${serverUrl}/api/v1`,
+  });
 
   let botLogin: string;
   try {
