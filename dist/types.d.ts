@@ -1,4 +1,4 @@
-export interface GitHubIssue {
+export interface Issue {
     number: number;
     title: string;
     body: string | null;
@@ -71,6 +71,7 @@ export interface Logger {
 export interface ActionContext {
     owner: string;
     repo: string;
+    botLogin: string;
     octokit: any;
     logger: Logger;
     configPath?: string;
