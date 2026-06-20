@@ -8,13 +8,11 @@ branding:
 
 inputs:
   forgejo-server-url:
-    description: "URL of the Forgejo instance (defaults to ${{ github.server_url }})"
+    description: "URL of the Forgejo instance (defaults to the GITHUB_SERVER_URL env var)"
     required: false
-    default: "${{ github.server_url }}"
   forgejo-token:
-    description: "Forgejo token for API access"
+    description: "Forgejo token for API access (defaults to the GITHUB_TOKEN env var)"
     required: false
-    default: "${{ github.token }}"
   anthropic-api-key:
     description: "Anthropic API key for Claude"
     required: false
