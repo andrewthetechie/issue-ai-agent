@@ -113,7 +113,7 @@ If your provider exposes an Anthropic or OpenAI compatible API, point `llm-base-
     llm-base-url: https://your-provider.example.com/v1
 ```
 
-If you use a custom model, create `.github/issue-ai.yml` in your repo to specify it:
+If you use a custom model, create `.forgejo/issue-ai.yml` in your repo to specify it:
 
 ```yaml
 llm:
@@ -122,10 +122,10 @@ llm:
 
 ## Configuration
 
-Create `.github/issue-ai.yml` in your repository to customize behavior. The bot works out of the box with sensible defaults — no config file required.
+Create `.forgejo/issue-ai.yml` in your repository to customize behavior. The bot works out of the box with sensible defaults — no config file required.
 
 ```yaml
-# .github/issue-ai.yml
+# .forgejo/issue-ai.yml
 enabled: true
 
 features:
@@ -179,12 +179,13 @@ llm:
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `github-token` | No | `${{ github.token }}` | GitHub token for API access |
+| `forgejo-token` | No | `${{ github.token }}` | Forgejo token for API access |
+| `forgejo-server-url` | No | `${{ github.server_url }}` | URL of the Forgejo instance |
 | `anthropic-api-key` | No | | Anthropic API key |
 | `openai-api-key` | No | | OpenAI API key |
 | `llm-provider` | No | `anthropic` | Which LLM provider to use |
 | `llm-base-url` | No | | Custom base URL for LLM API (applies to selected provider) |
-| `config-path` | No | `.github/issue-ai.yml` | Path to config file in repo |
+| `config-path` | No | `.forgejo/issue-ai.yml` | Path to config file in repo |
 
 At least one API key is required. If neither is set, the bot runs in **dev mode** with mock responses.
 
@@ -211,17 +212,17 @@ npm run dev         # TypeScript watch mode
 ### Architecture
 
 ```
-GitHub Action (issues.opened / issue_comment.created)
-  → loadConfig()    — Fetch .github/issue-ai.yml via GitHub API
+Forgejo Action (issues.opened / issue_comment.created)
+  → loadConfig()    — Fetch .forgejo/issue-ai.yml via Forgejo API
   → shouldExclude() — Check exclude rules
   → classify        — LLM classifies the issue (category + priority)
-  → label           — Maps classification to repo labels via GitHub API
+  → label           — Maps classification to repo labels via Forgejo API
   → duplicate       — Searches similar issues, LLM confirms duplicates
   → reply           — Drafts and posts a contextual comment via LLM
 ```
 
 Key design decisions:
-- **Stateless** — no database; reads config from each repo's `.github/issue-ai.yml`
+- **Stateless** — no database; reads config from each repo's `.forgejo/issue-ai.yml`
 - **Error-resilient** — each pipeline step catches its own errors, so a classification failure doesn't block the reply
 - **Security-first** — input sanitization (zero-width chars, control chars, length limits) + explicit untrusted-data markers in prompts
 
