@@ -1,4 +1,5 @@
 import type { RelatedIssue } from "../types.js";
+import { normalizeServerUrl } from "../utils.js";
 
 export const STOP_WORDS = new Set(["the", "and", "for", "not", "but", "are", "was", "has", "this", "that", "with", "from", "into", "can", "all", "its", "our"]);
 
@@ -26,7 +27,7 @@ export async function searchSimilarIssues(
     return [];
   }
 
-  const baseUrl = serverUrl.replace(/\/$/, '');
+  const baseUrl = normalizeServerUrl(serverUrl);
   const url = `${baseUrl}/api/v1/repos/issues/search?q=${encodeURIComponent(keywords)}&owner=${encodeURIComponent(owner)}&type=issues&state=open&limit=5`;
 
   const response = await fetch(url, {
