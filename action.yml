@@ -1,14 +1,14 @@
-name: "Issue AI Agent"
-description: "AI-powered GitHub Issue triage: classify, label, detect duplicates, and reply"
-author: "alexyan0431"
+name: "Issue AI Agent for Forgejo"
+description: "AI-powered Forgejo issue triage: classify, label, detect duplicates, and reply"
+author: "andrewthetechie"
 
 branding:
   icon: "zap"
   color: "purple"
 
 inputs:
-  github-token:
-    description: "GitHub token for API access"
+  forgejo-token:
+    description: "Forgejo token for API access"
     required: false
     default: "${{ github.token }}"
   anthropic-api-key:

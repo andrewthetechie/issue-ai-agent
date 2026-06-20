@@ -23,9 +23,9 @@ function createActionLogger(): Logger {
 }
 
 export async function main(): Promise<void> {
-  const token = core.getInput("github-token") || process.env.GITHUB_TOKEN;
+  const token = core.getInput("forgejo-token") || process.env.GITHUB_TOKEN;
   if (!token) {
-    core.setFailed("github-token input or GITHUB_TOKEN env var is required");
+    core.setFailed("forgejo-token input or GITHUB_TOKEN env var is required");
     return;
   }
 
