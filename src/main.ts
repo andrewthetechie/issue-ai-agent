@@ -1,8 +1,11 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { ActionContext, Logger } from "./types.js";
 import { runPipeline } from "./pipeline.js";
 import { handleComment } from "./comment-handler.js";
+import { normalizeServerUrl } from "./utils.js";
 
 function formatMessage(msgOrObj: unknown, msg?: string): string {
   return typeof msgOrObj === "string"
@@ -22,10 +25,10 @@ function createActionLogger(): Logger {
   return logger;
 }
 
-async function main(): Promise<void> {
-  const token = core.getInput("github-token") || process.env.GITHUB_TOKEN;
+export async function main(): Promise<void> {
+  const token = core.getInput("forgejo-token") || process.env.GITHUB_TOKEN;
   if (!token) {
-    core.setFailed("github-token input or GITHUB_TOKEN env var is required");
+    core.setFailed("forgejo-token input or GITHUB_TOKEN env var is required");
     return;
   }
 
@@ -48,13 +51,40 @@ async function main(): Promise<void> {
     }
   }
 
-  const octokit = github.getOctokit(token);
+  const forgejoServerUrlInput = core.getInput("forgejo-server-url");
+  const serverUrl =
+    forgejoServerUrlInput ||
+    process.env.FORGEJO_SERVER_URL ||
+    process.env.GITHUB_SERVER_URL;
+  if (!serverUrl) {
+    core.setFailed(
+      "forgejo-server-url input or FORGEJO_SERVER_URL / GITHUB_SERVER_URL environment variable is required",
+    );
+    return;
+  }
+  const normalizedServerUrl = normalizeServerUrl(serverUrl);
+  const octokit = github.getOctokit(token, {
+    baseUrl: `${normalizedServerUrl}/api/v1`,
+  });
+
+  let botLogin: string;
+  try {
+    const { data } = await octokit.rest.users.getAuthenticated();
+    botLogin = data.login;
+  } catch (error) {
+    core.setFailed(
+      `Failed to resolve bot identity: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return;
+  }
+
   const ctx = github.context;
   const { owner, repo } = ctx.repo;
 
   const actx: ActionContext = {
     owner,
     repo,
+    botLogin,
     octokit,
     logger: createActionLogger(),
     configPath,
@@ -64,7 +94,7 @@ async function main(): Promise<void> {
 
   try {
     if (actx.eventName === "issues") {
-      const result = await runPipeline(actx);
+      const result = await runPipeline(actx, normalizedServerUrl, token);
 
       core.setOutput("category", result.classification?.category ?? "");
       core.setOutput("priority", result.classification?.priority ?? "");
@@ -84,4 +114,21 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+// Determine whether this module is being run directly as the action entrypoint.
+// Compares real (symlink-resolved) paths because runners execute the action via
+// a symlinked path (e.g. /var/run -> /run on the catthehacker images): Node
+// resolves symlinks for import.meta.url but not for process.argv[1], so a naive
+// `import.meta.url === file://${process.argv[1]}` check is false and main() never runs.
+function isDirectRun(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectRun()) {
+  main();
+}

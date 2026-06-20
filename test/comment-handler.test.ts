@@ -74,6 +74,7 @@ function createMockActionContext(overrides: Record<string, unknown> = {}): Actio
   return {
     owner: "owner",
     repo: "repo",
+    botLogin: "issue-ai-bot",
     octokit: mockOctokit,
     logger: mockLog,
     eventName: "issue_comment",
@@ -89,15 +90,50 @@ describe("handleComment", () => {
     delete process.env.OPENAI_API_KEY;
   });
 
-  it("skips bot comments", async () => {
+  it("skips comments from botLogin (own-comment case)", async () => {
     const actx = createMockActionContext({
+      botLogin: "issue-ai-bot",
       payload: {
         ...basePayload,
-        sender: { login: "bot-account", type: "Bot" },
+        sender: { login: "issue-ai-bot" },
       },
     });
     await handleComment(actx);
     expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("skips comments from users in config.exclude.users", async () => {
+    const { loadConfig } = await import("../src/config/loader.js");
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      ...DEFAULT_CONFIG,
+      exclude: { ...DEFAULT_CONFIG.exclude, users: ["commenter"] },
+    });
+
+    const actx = createMockActionContext({
+      botLogin: "issue-ai-bot",
+      payload: {
+        ...basePayload,
+        sender: { login: "commenter" },
+      },
+    });
+    await handleComment(actx);
+    expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("posts a reply when sender is neither botLogin nor excluded", async () => {
+    const actx = createMockActionContext({
+      botLogin: "issue-ai-bot",
+      payload: {
+        ...basePayload,
+        sender: { login: "commenter" },
+      },
+    });
+
+    await handleComment(actx);
+
+    expect(actx.octokit.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    const call = actx.octokit.rest.issues.createComment.mock.calls[0][0] as { body: string };
+    expect(call.body).toContain("Issue AI Agent");
   });
 
   it("skips comments on pull requests", async () => {
@@ -114,23 +150,38 @@ describe("handleComment", () => {
     expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
+  it("does NOT call loadConfig for comments on pull requests", async () => {
+    const { loadConfig } = await import("../src/config/loader.js");
+    const actx = createMockActionContext({
+      payload: {
+        ...basePayload,
+        issue: {
+          ...basePayload.issue,
+          pull_request: { url: "https://api.github.com/repos/owner/repo/pulls/5" },
+        },
+      },
+    });
+    await handleComment(actx);
+    expect(loadConfig).not.toHaveBeenCalled();
+  });
+
+  it("does NOT call loadConfig when there is no comment payload", async () => {
+    const { loadConfig } = await import("../src/config/loader.js");
+    const actx = createMockActionContext({
+      payload: {
+        ...basePayload,
+        comment: undefined,
+      },
+    });
+    await handleComment(actx);
+    expect(loadConfig).not.toHaveBeenCalled();
+  });
+
   it("skips when commentReply is disabled", async () => {
     const { loadConfig } = await import("../src/config/loader.js");
     vi.mocked(loadConfig).mockResolvedValueOnce({
       ...DEFAULT_CONFIG,
       features: { ...DEFAULT_CONFIG.features, commentReply: false },
-    });
-
-    const actx = createMockActionContext();
-    await handleComment(actx);
-    expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
-  });
-
-  it("skips excluded users", async () => {
-    const { loadConfig } = await import("../src/config/loader.js");
-    vi.mocked(loadConfig).mockResolvedValueOnce({
-      ...DEFAULT_CONFIG,
-      exclude: { ...DEFAULT_CONFIG.exclude, users: ["commenter"] },
     });
 
     const actx = createMockActionContext();

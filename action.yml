@@ -1,16 +1,18 @@
-name: "Issue AI Agent"
-description: "AI-powered GitHub Issue triage: classify, label, detect duplicates, and reply"
-author: "alexyan0431"
+name: "Issue AI Agent for Forgejo"
+description: "AI-powered Forgejo issue triage: classify, label, detect duplicates, and reply"
+author: "andrewthetechie"
 
 branding:
   icon: "zap"
   color: "purple"
 
 inputs:
-  github-token:
-    description: "GitHub token for API access"
+  forgejo-server-url:
+    description: "URL of the Forgejo instance (defaults to the GITHUB_SERVER_URL env var)"
     required: false
-    default: "${{ github.token }}"
+  forgejo-token:
+    description: "Forgejo token for API access (defaults to the GITHUB_TOKEN env var)"
+    required: false
   anthropic-api-key:
     description: "Anthropic API key for Claude"
     required: false
@@ -27,7 +29,7 @@ inputs:
   config-path:
     description: "Path to the config YAML file in the repo"
     required: false
-    default: ".github/issue-ai.yml"
+    default: ".forgejo/issue-ai.yml"
 
 outputs:
   category:
@@ -40,5 +42,5 @@ outputs:
     description: "Whether a reply comment was posted"
 
 runs:
-  using: "node20"
+  using: "node24"
   main: "dist/index.js"

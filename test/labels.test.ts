@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveLabels } from "../src/github/labels.js";
+import { resolveLabels } from "../src/forgejo/labels.js";
 import { DEFAULT_CONFIG } from "../src/config/schema.js";
 import type { IssueClassification } from "../src/types.js";
 

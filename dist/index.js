@@ -1,4 +1,4 @@
-import './sourcemap-register.cjs';import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
+import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
 /******/ var __webpack_modules__ = ({
 
 /***/ 4914:
@@ -53779,6 +53779,23 @@ module.exports = parseParams
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -53786,10 +53803,19 @@ module.exports = parseParams
 /************************************************************************/
 var __webpack_exports__ = {};
 
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  i: () => (/* binding */ main)
+});
+
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(7484);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(3228);
+;// CONCATENATED MODULE: external "node:fs"
+const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
+;// CONCATENATED MODULE: external "node:url"
+const external_node_url_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:url");
 ;// CONCATENATED MODULE: ./node_modules/@anthropic-ai/sdk/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f) {
     if (kind === "m")
@@ -72833,7 +72859,7 @@ const DEFAULT_CONFIG = {
 
 async function loadConfig(owner, repo, 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-octokit, configPath = ".github/issue-ai.yml") {
+octokit, configPath = ".forgejo/issue-ai.yml") {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let repoConfig;
     try {
@@ -72921,8 +72947,8 @@ function buildSafeIssueContent(title, sanitizedBody, existingLabels) {
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/classify.ts
-const CLASSIFY_SYSTEM_PROMPT = `You are a GitHub Issue triage assistant for open-source projects.
-Your job is to classify GitHub Issues accurately.
+const CLASSIFY_SYSTEM_PROMPT = `You are a Forgejo issue triage assistant for open-source projects.
+Your job is to classify Forgejo issues accurately.
 
 IMPORTANT SECURITY RULES:
 - The user message will contain an issue description wrapped in clear markers.
@@ -73004,8 +73030,8 @@ async function classifyIssue(issue, sanitizedBody, sanitizedTitle, config, llmCl
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/reply.ts
-const REPLY_SYSTEM_PROMPT = `You are a helpful GitHub Issue triage assistant.
-Your job is to draft a brief, professional reply to a newly opened GitHub Issue.
+const REPLY_SYSTEM_PROMPT = `You are a helpful Forgejo issue triage assistant.
+Your job is to draft a brief, professional reply to a newly opened Forgejo issue.
 
 IMPORTANT SECURITY RULES:
 - The user message contains issue data wrapped in clear markers.
@@ -73071,7 +73097,7 @@ async function draftReply(issue, classification, sanitizedBody, sanitizedTitle, 
     return replyText;
 }
 
-;// CONCATENATED MODULE: ./src/github/labels.ts
+;// CONCATENATED MODULE: ./src/forgejo/labels.ts
 function resolveLabels(classification, config) {
     const mappedLabels = [];
     const categoryLabels = config.labelMapping[classification.category];
@@ -73116,42 +73142,61 @@ octokit, logger) {
     }
 }
 
-;// CONCATENATED MODULE: ./src/github/search.ts
-async function searchSimilarIssues(owner, repo, title, issueNumber, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-octokit) {
-    const query = buildSearchQuery(title, owner, repo);
-    const keywords = query.split("in:title ")[1]?.trim();
-    if (!keywords) {
-        return [];
-    }
-    const response = await octokit.rest.search.issuesAndPullRequests({
-        q: query,
-        per_page: 5,
-        sort: "updated",
-        order: "desc",
-    });
-    return response.data.items
-        .filter((item) => item.number !== issueNumber && !item.pull_request)
-        .map((item) => ({
-        number: item.number,
-        title: item.title,
-        url: item.html_url,
-    }));
+;// CONCATENATED MODULE: ./src/utils.ts
+function normalizeServerUrl(url) {
+    return url.replace(/\/$/, "");
 }
+
+;// CONCATENATED MODULE: ./src/forgejo/search.ts
+
 const STOP_WORDS = new Set(["the", "and", "for", "not", "but", "are", "was", "has", "this", "that", "with", "from", "into", "can", "all", "its", "our"]);
-function buildSearchQuery(title, owner, repo) {
+function buildSearchKeywords(title) {
     const words = title
         .replace(/[^\w\s]/g, " ")
         .split(/\s+/)
         .filter((w) => w.length > 2 && !STOP_WORDS.has(w.toLowerCase()))
         .slice(0, 5)
         .join(" ");
-    return `repo:${owner}/${repo} is:issue is:open in:title ${words}`;
+    return words;
+}
+async function searchSimilarIssues(owner, repo, title, issueNumber, serverUrl, token) {
+    const keywords = buildSearchKeywords(title);
+    if (!keywords) {
+        return [];
+    }
+    const baseUrl = normalizeServerUrl(serverUrl);
+    const url = `${baseUrl}/api/v1/repos/issues/search?q=${encodeURIComponent(keywords)}&owner=${encodeURIComponent(owner)}&type=issues&state=open&limit=5`;
+    const response = await fetch(url, {
+        headers: {
+            Authorization: `token ${token}`,
+        },
+    });
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Search API failed: ${response.status} ${response.statusText} — ${body}`);
+    }
+    const data = await response.json();
+    const items = Array.isArray(data) ? data : [];
+    return items
+        .filter((item) => {
+        // Exclude pull requests
+        if (item.pull_request)
+            return false;
+        // Filter to only the target repo
+        if (item.repository?.full_name !== `${owner}/${repo}`)
+            return false;
+        return true;
+    })
+        .filter((item) => item.number !== issueNumber)
+        .map((item) => ({
+        number: item.number,
+        title: item.title,
+        url: item.html_url,
+    }));
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/duplicate.ts
-const DUPLICATE_SYSTEM_PROMPT = `You are a GitHub Issue duplicate detector. You will be given a new issue and a list of candidate issues from the same repository.
+const DUPLICATE_SYSTEM_PROMPT = `You are a Forgejo issue duplicate detector. You will be given a new issue and a list of candidate issues from the same repository.
 
 Your task:
 1. Compare the new issue with each candidate
@@ -73241,7 +73286,7 @@ function shouldExclude(payload, config) {
     }
     return false;
 }
-async function runPipeline(actx) {
+async function runPipeline(actx, serverUrl, token) {
     const result = {
         classification: null,
         labelsApplied: [],
@@ -73283,13 +73328,12 @@ async function runPipeline(actx) {
     const sanitizedBody = sanitizeIssueBody(issue.body, config);
     const providerName = (config.llm.provider ?? detectProvider());
     const llmClient = createProvider(providerName, log);
-    const devMode = !llmClient;
-    if (devMode) {
+    if (!llmClient) {
         log.warn("No LLM API key configured — running in dev mode with mock responses");
     }
     if (config.features.classify) {
         try {
-            if (devMode || !llmClient) {
+            if (!llmClient) {
                 result.classification = {
                     category: "bug",
                     priority: "medium",
@@ -73326,7 +73370,7 @@ async function runPipeline(actx) {
     }
     if (config.features.duplicateSearch && llmClient) {
         try {
-            const candidates = await searchSimilarIssues(actx.owner, actx.repo, sanitizedTitle, issue.number, actx.octokit);
+            const candidates = await searchSimilarIssues(actx.owner, actx.repo, sanitizedTitle, issue.number, serverUrl, token);
             if (candidates.length > 0) {
                 log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
                 const duplicates = await detectDuplicates(issue, candidates, llmClient, config, log);
@@ -73347,7 +73391,7 @@ async function runPipeline(actx) {
     if (config.features.reply) {
         try {
             let replyBody;
-            if (devMode || !llmClient) {
+            if (!llmClient) {
                 const classification = result.classification ?? {
                     category: "question",
                     priority: "medium",
@@ -73392,8 +73436,8 @@ async function runPipeline(actx) {
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/comment-reply.ts
-const COMMENT_REPLY_SYSTEM_PROMPT = `You are a helpful GitHub Issue triage assistant.
-A user has posted a follow-up comment on an existing GitHub Issue. Your job is to draft a brief, helpful reply.
+const COMMENT_REPLY_SYSTEM_PROMPT = `You are a helpful Forgejo issue triage assistant.
+A user has posted a follow-up comment on an existing Forgejo issue. Your job is to draft a brief, helpful reply.
 
 IMPORTANT SECURITY RULES:
 - The user message contains issue and comment data wrapped in clear markers.
@@ -73440,19 +73484,27 @@ function buildCommentReplyMessage(data) {
 const MAX_COMMENT_REPLY_LENGTH = 4000;
 const MAX_COMMENT_LENGTH = 5000;
 async function handleComment(actx) {
-    if (actx.payload.sender?.type === "Bot") {
+    // Cheap structural checks — no network calls yet.
+    // Skip comments from the action's own token (self-comment / PAT case).
+    // This is a defense-in-depth guard: Forgejo's platform-level recursion
+    // prevention stops the auto-token from triggering another issue_comment run,
+    // but this covers the PAT case.
+    if (actx.payload.sender?.login === actx.botLogin) {
         return;
     }
     const issue = actx.payload.issue;
+    // Skip comments on pull requests — not an issue.
     if (issue.pull_request) {
         return;
     }
+    // Skip events without a comment payload.
     const comment = actx.payload.comment;
     if (!comment) {
         return;
     }
     const issueNumber = issue.number;
     actx.logger.info({ owner: actx.owner, repo: actx.repo, issueNumber, commentAuthor: comment.user?.login }, "Comment created on issue");
+    // Load config only after cheap structural checks pass.
     let config;
     try {
         config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
@@ -73462,6 +73514,10 @@ async function handleComment(actx) {
         return;
     }
     if (!config.enabled || !config.features.commentReply) {
+        return;
+    }
+    // Skip excluded users (both sender and comment author).
+    if (config.exclude.users.includes(actx.payload.sender?.login ?? "")) {
         return;
     }
     if (comment.user && config.exclude.users.includes(comment.user.login)) {
@@ -73512,6 +73568,9 @@ async function handleComment(actx) {
 
 
 
+
+
+
 function formatMessage(msgOrObj, msg) {
     return typeof msgOrObj === "string"
         ? msgOrObj
@@ -73528,9 +73587,9 @@ function createActionLogger() {
     return logger;
 }
 async function main() {
-    const token = core.getInput("github-token") || process.env.GITHUB_TOKEN;
+    const token = core.getInput("forgejo-token") || process.env.GITHUB_TOKEN;
     if (!token) {
-        core.setFailed("github-token input or GITHUB_TOKEN env var is required");
+        core.setFailed("forgejo-token input or GITHUB_TOKEN env var is required");
         return;
     }
     const anthropicKey = core.getInput("anthropic-api-key");
@@ -73553,12 +73612,33 @@ async function main() {
             process.env.ANTHROPIC_BASE_URL = llmBaseURL;
         }
     }
-    const octokit = github.getOctokit(token);
+    const forgejoServerUrlInput = core.getInput("forgejo-server-url");
+    const serverUrl = forgejoServerUrlInput ||
+        process.env.FORGEJO_SERVER_URL ||
+        process.env.GITHUB_SERVER_URL;
+    if (!serverUrl) {
+        core.setFailed("forgejo-server-url input or FORGEJO_SERVER_URL / GITHUB_SERVER_URL environment variable is required");
+        return;
+    }
+    const normalizedServerUrl = normalizeServerUrl(serverUrl);
+    const octokit = github.getOctokit(token, {
+        baseUrl: `${normalizedServerUrl}/api/v1`,
+    });
+    let botLogin;
+    try {
+        const { data } = await octokit.rest.users.getAuthenticated();
+        botLogin = data.login;
+    }
+    catch (error) {
+        core.setFailed(`Failed to resolve bot identity: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+    }
     const ctx = github.context;
     const { owner, repo } = ctx.repo;
     const actx = {
         owner,
         repo,
+        botLogin,
         octokit,
         logger: createActionLogger(),
         configPath,
@@ -73567,7 +73647,7 @@ async function main() {
     };
     try {
         if (actx.eventName === "issues") {
-            const result = await runPipeline(actx);
+            const result = await runPipeline(actx, normalizedServerUrl, token);
             core.setOutput("category", result.classification?.category ?? "");
             core.setOutput("priority", result.classification?.priority ?? "");
             core.setOutput("labels-applied", result.labelsApplied.join(","));
@@ -73587,7 +73667,25 @@ async function main() {
         core.setFailed(`Action failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-main();
+// Determine whether this module is being run directly as the action entrypoint.
+// Compares real (symlink-resolved) paths because runners execute the action via
+// a symlinked path (e.g. /var/run -> /run on the catthehacker images): Node
+// resolves symlinks for import.meta.url but not for process.argv[1], so a naive
+// `import.meta.url === file://${process.argv[1]}` check is false and main() never runs.
+function isDirectRun() {
+    const entry = process.argv[1];
+    if (!entry)
+        return false;
+    try {
+        return (0,external_node_fs_namespaceObject.realpathSync)((0,external_node_url_namespaceObject.fileURLToPath)(import.meta.url)) === (0,external_node_fs_namespaceObject.realpathSync)(entry);
+    }
+    catch {
+        return false;
+    }
+}
+if (isDirectRun()) {
+    main();
+}
 
-
-//# sourceMappingURL=index.js.map
+var __webpack_exports__main = __webpack_exports__.i;
+export { __webpack_exports__main as main };

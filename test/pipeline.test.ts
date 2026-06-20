@@ -41,7 +41,7 @@ vi.mock("../src/llm/factory.js", () => ({
 }));
 
 // Mock GitHub search API
-vi.mock("../src/github/search.js", () => ({
+vi.mock("../src/forgejo/search.js", () => ({
   searchSimilarIssues: vi.fn().mockResolvedValue([]),
 }));
 
@@ -185,7 +185,7 @@ describe("runPipeline", () => {
   });
 
   it("sets relatedIssues when duplicates are found", async () => {
-    const { searchSimilarIssues } = await import("../src/github/search.js");
+    const { searchSimilarIssues } = await import("../src/forgejo/search.js");
     vi.mocked(searchSimilarIssues).mockResolvedValueOnce([
       { number: 42, title: "Same crash", url: "https://github.com/owner/repo/issues/42" },
     ]);

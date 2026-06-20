@@ -1,5 +1,5 @@
 import type { Logger } from "./types.js";
-import type { GitHubIssue, IssueClassification, IssueCategory, IssuePriority, RepoConfig } from "./types.js";
+import type { Issue, IssueClassification, IssueCategory, IssuePriority, RepoConfig } from "./types.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { CLASSIFY_SYSTEM_PROMPT } from "./prompts/classify.js";
 import { buildSafeIssueContent } from "./sanitizer.js";
@@ -44,7 +44,7 @@ export function parseClassificationResponse(raw: string): IssueClassification {
 }
 
 export async function classifyIssue(
-  issue: GitHubIssue,
+  issue: Issue,
   sanitizedBody: string,
   sanitizedTitle: string,
   config: RepoConfig,

@@ -1,4 +1,4 @@
-export const DUPLICATE_SYSTEM_PROMPT = `You are a GitHub Issue duplicate detector. You will be given a new issue and a list of candidate issues from the same repository.
+export const DUPLICATE_SYSTEM_PROMPT = `You are a Forgejo issue duplicate detector. You will be given a new issue and a list of candidate issues from the same repository.
 
 Your task:
 1. Compare the new issue with each candidate

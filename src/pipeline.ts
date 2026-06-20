@@ -1,12 +1,12 @@
-import type { ActionContext, GitHubIssue, Logger, PipelineResult, RepoConfig } from "./types.js";
+import type { ActionContext, Issue, Logger, PipelineResult, RepoConfig } from "./types.js";
 import { createProvider, detectProvider } from "./llm/factory.js";
 import type { ProviderName } from "./llm/factory.js";
 import { loadConfig } from "./config/loader.js";
 import { sanitizeIssueBody, sanitizeIssueTitle } from "./sanitizer.js";
 import { classifyIssue } from "./classifier.js";
 import { draftReply } from "./replier.js";
-import { resolveLabels, applyLabels } from "./github/labels.js";
-import { searchSimilarIssues } from "./github/search.js";
+import { resolveLabels, applyLabels } from "./forgejo/labels.js";
+import { searchSimilarIssues } from "./forgejo/search.js";
 import { detectDuplicates } from "./duplicate.js";
 
 function shouldExclude(
@@ -31,6 +31,8 @@ function shouldExclude(
 
 export async function runPipeline(
   actx: ActionContext,
+  serverUrl: string,
+  token: string,
 ): Promise<PipelineResult> {
   const result: PipelineResult = {
     classification: null,
@@ -64,7 +66,7 @@ export async function runPipeline(
     return result;
   }
 
-  const issue: GitHubIssue = {
+  const issue: Issue = {
     number: actx.payload.issue.number,
     title: actx.payload.issue.title,
     body: actx.payload.issue.body ?? null,
@@ -81,15 +83,14 @@ export async function runPipeline(
 
   const providerName = (config.llm.provider ?? detectProvider()) as ProviderName;
   const llmClient = createProvider(providerName, log);
-  const devMode = !llmClient;
 
-  if (devMode) {
+  if (!llmClient) {
     log.warn("No LLM API key configured — running in dev mode with mock responses");
   }
 
   if (config.features.classify) {
     try {
-      if (devMode || !llmClient) {
+      if (!llmClient) {
         result.classification = {
           category: "bug" as const,
           priority: "medium" as const,
@@ -131,7 +132,7 @@ export async function runPipeline(
   if (config.features.duplicateSearch && llmClient) {
     try {
       const candidates = await searchSimilarIssues(
-        actx.owner, actx.repo, sanitizedTitle, issue.number, actx.octokit,
+        actx.owner, actx.repo, sanitizedTitle, issue.number, serverUrl, token,
       );
       if (candidates.length > 0) {
         log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
@@ -155,7 +156,7 @@ export async function runPipeline(
   if (config.features.reply) {
     try {
       let replyBody: string;
-      if (devMode || !llmClient) {
+      if (!llmClient) {
         const classification = result.classification ?? {
           category: "question" as const,
           priority: "medium" as const,

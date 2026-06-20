@@ -1,12 +1,12 @@
 import type { Logger } from "./types.js";
-import type { GitHubIssue, IssueClassification, RepoConfig } from "./types.js";
+import type { Issue, IssueClassification, RepoConfig } from "./types.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { REPLY_SYSTEM_PROMPT, buildReplyUserMessage } from "./prompts/reply.js";
 
 const MAX_REPLY_LENGTH = 4000;
 
 export async function draftReply(
-  issue: GitHubIssue,
+  issue: Issue,
   classification: IssueClassification,
   sanitizedBody: string,
   sanitizedTitle: string,

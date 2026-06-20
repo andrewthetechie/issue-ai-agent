@@ -1,5 +1,5 @@
 import type { Logger } from "./types.js";
-import type { GitHubIssue, RelatedIssue, RepoConfig } from "./types.js";
+import type { Issue, RelatedIssue, RepoConfig } from "./types.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { DUPLICATE_SYSTEM_PROMPT, buildDuplicateUserMessage } from "./prompts/duplicate.js";
 
@@ -33,7 +33,7 @@ export function parseDuplicateResponse(raw: string): DuplicateResponse {
 }
 
 export async function detectDuplicates(
-  issue: GitHubIssue,
+  issue: Issue,
   candidates: RelatedIssue[],
   llmClient: LLMProvider,
   config: RepoConfig,

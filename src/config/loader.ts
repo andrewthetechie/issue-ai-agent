@@ -7,7 +7,7 @@ export async function loadConfig(
   repo: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   octokit: any,
-  configPath: string = ".github/issue-ai.yml",
+  configPath: string = ".forgejo/issue-ai.yml",
 ): Promise<RepoConfig> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let repoConfig: any;
