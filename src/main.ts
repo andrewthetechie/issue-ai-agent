@@ -80,8 +80,6 @@ export async function main(): Promise<void> {
   const actx: ActionContext = {
     owner,
     repo,
-    serverUrl,
-    token,
     botLogin,
     octokit,
     logger: createActionLogger(),
@@ -92,7 +90,7 @@ export async function main(): Promise<void> {
 
   try {
     if (actx.eventName === "issues") {
-      const result = await runPipeline(actx);
+      const result = await runPipeline(actx, serverUrl, token);
 
       core.setOutput("category", result.classification?.category ?? "");
       core.setOutput("priority", result.classification?.priority ?? "");

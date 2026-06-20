@@ -79,11 +79,15 @@ export interface Logger {
   child(bindings: Record<string, unknown>): Logger;
 }
 
+// DESIGN DECISION: The token is intentionally NOT stored on ActionContext.
+// ActionContext is shared across all modules (pipeline, comment handler, etc.)
+// and could be logged, serialized, or debug-dumped. Storing the credential
+// there creates a latent leak risk. Instead, the token and serverUrl are
+// threaded explicitly to the one module that needs them (searchSimilarIssues
+// via runPipeline). This keeps the credential encapsulated and auditable.
 export interface ActionContext {
   owner: string;
   repo: string;
-  serverUrl: string;
-  token: string;
   botLogin: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   octokit: any;
