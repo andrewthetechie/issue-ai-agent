@@ -73138,38 +73138,61 @@ octokit, logger) {
     }
 }
 
-;// CONCATENATED MODULE: ./src/forgejo/search.ts
-async function searchSimilarIssues(owner, repo, title, issueNumber, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-octokit) {
-    const query = buildSearchQuery(title, owner, repo);
-    const keywords = query.split("in:title ")[1]?.trim();
-    if (!keywords) {
-        return [];
-    }
-    const response = await octokit.rest.search.issuesAndPullRequests({
-        q: query,
-        per_page: 5,
-        sort: "updated",
-        order: "desc",
-    });
-    return response.data.items
-        .filter((item) => item.number !== issueNumber && !item.pull_request)
-        .map((item) => ({
-        number: item.number,
-        title: item.title,
-        url: item.html_url,
-    }));
+;// CONCATENATED MODULE: ./src/forgejo/url.ts
+/**
+ * Normalizes a server URL by trimming a trailing slash (if present).
+ * Used consistently across Forgejo-related modules.
+ */
+function normalizeUrl(url) {
+    return url.replace(/\/$/, "");
 }
+
+;// CONCATENATED MODULE: ./src/forgejo/search.ts
+
 const STOP_WORDS = new Set(["the", "and", "for", "not", "but", "are", "was", "has", "this", "that", "with", "from", "into", "can", "all", "its", "our"]);
-function buildSearchQuery(title, owner, repo) {
+function buildSearchKeywords(title) {
     const words = title
         .replace(/[^\w\s]/g, " ")
         .split(/\s+/)
         .filter((w) => w.length > 2 && !STOP_WORDS.has(w.toLowerCase()))
         .slice(0, 5)
         .join(" ");
-    return `repo:${owner}/${repo} is:issue is:open in:title ${words}`;
+    return words;
+}
+async function searchSimilarIssues(owner, repo, title, issueNumber, serverUrl, token) {
+    const keywords = buildSearchKeywords(title);
+    if (!keywords) {
+        return [];
+    }
+    const baseUrl = normalizeUrl(serverUrl);
+    const url = `${baseUrl}/api/v1/repos/issues/search?q=${encodeURIComponent(keywords)}&owner=${encodeURIComponent(owner)}&type=issues&state=open&limit=5`;
+    const response = await fetch(url, {
+        headers: {
+            Authorization: `token ${token}`,
+        },
+    });
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Search API failed: ${response.status} ${response.statusText} — ${body}`);
+    }
+    const data = await response.json();
+    const items = Array.isArray(data) ? data : [];
+    return items
+        .filter((item) => {
+        // Exclude pull requests
+        if (item.pull_request)
+            return false;
+        // Filter to only the target repo
+        if (item.repository?.full_name !== `${owner}/${repo}`)
+            return false;
+        return true;
+    })
+        .filter((item) => item.number !== issueNumber)
+        .map((item) => ({
+        number: item.number,
+        title: item.title,
+        url: item.html_url,
+    }));
 }
 
 ;// CONCATENATED MODULE: ./src/prompts/duplicate.ts
@@ -73348,7 +73371,7 @@ async function runPipeline(actx) {
     }
     if (config.features.duplicateSearch && llmClient) {
         try {
-            const candidates = await searchSimilarIssues(actx.owner, actx.repo, sanitizedTitle, issue.number, actx.octokit);
+            const candidates = await searchSimilarIssues(actx.owner, actx.repo, sanitizedTitle, issue.number, actx.serverUrl, actx.token);
             if (candidates.length > 0) {
                 log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
                 const duplicates = await detectDuplicates(issue, candidates, llmClient, config, log);
@@ -73542,6 +73565,7 @@ async function handleComment(actx) {
 
 
 
+
 function formatMessage(msgOrObj, msg) {
     return typeof msgOrObj === "string"
         ? msgOrObj
@@ -73558,9 +73582,9 @@ function createActionLogger() {
     return logger;
 }
 async function main() {
-    const token = core.getInput("github-token") || process.env.GITHUB_TOKEN;
+    const token = core.getInput("forgejo-token") || process.env.GITHUB_TOKEN;
     if (!token) {
-        core.setFailed("github-token input or GITHUB_TOKEN env var is required");
+        core.setFailed("forgejo-token input or GITHUB_TOKEN env var is required");
         return;
     }
     const anthropicKey = core.getInput("anthropic-api-key");
@@ -73583,7 +73607,10 @@ async function main() {
             process.env.ANTHROPIC_BASE_URL = llmBaseURL;
         }
     }
-    const octokit = github.getOctokit(token);
+    const serverUrlInput = core.getInput("forgejo-server-url");
+    const serverUrl = (process.env.FORGEJO_SERVER_URL ?? (serverUrlInput || process.env.GITHUB_SERVER_URL)) || "https://github.com";
+    const normalizedServerUrl = normalizeUrl(serverUrl);
+    const octokit = github.getOctokit(token, { baseUrl: `${normalizedServerUrl}/api/v1` });
     let botLogin;
     try {
         const { data } = await octokit.rest.users.getAuthenticated();
@@ -73593,11 +73620,30 @@ async function main() {
         core.setFailed(`Failed to resolve bot identity: ${error instanceof Error ? error.message : String(error)}`);
         return;
     }
+    // Startup health-check: verify the Forgejo/Gitea API is reachable via GET /api/v1/user
+    const baseUrl = normalizedServerUrl;
+    try {
+        const healthResponse = await fetch(`${baseUrl}/api/v1/user`, {
+            headers: {
+                Authorization: `token ${token}`,
+            },
+        });
+        if (!healthResponse.ok) {
+            core.setFailed(`Startup health-check failed: GET ${baseUrl}/api/v1/user returned ${healthResponse.status} ${healthResponse.statusText}`);
+            return;
+        }
+    }
+    catch (error) {
+        core.setFailed(`Startup health-check failed: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+    }
     const ctx = github.context;
     const { owner, repo } = ctx.repo;
     const actx = {
         owner,
         repo,
+        serverUrl,
+        token,
         botLogin,
         octokit,
         logger: createActionLogger(),

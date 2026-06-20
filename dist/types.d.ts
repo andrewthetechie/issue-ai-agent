@@ -71,6 +71,8 @@ export interface Logger {
 export interface ActionContext {
     owner: string;
     repo: string;
+    serverUrl: string;
+    token: string;
     botLogin: string;
     octokit: any;
     logger: Logger;

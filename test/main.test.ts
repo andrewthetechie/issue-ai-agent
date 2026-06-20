@@ -303,8 +303,80 @@ describe("main", () => {
     });
   });
 
+ describe("Octokit baseUrl wiring", () => {
+    it("calls getOctokit with baseUrl option set to <serverUrl>/api/v1", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ login: "forgejo-bot" }),
+      }) as unknown as typeof global.fetch;
+
+      await main();
+
+      expect(github.getOctokit).toHaveBeenCalledWith(
+        "test-token",
+        { baseUrl: "https://github.com/api/v1" },
+      );
+    });
+
+    it("calls getOctokit with baseUrl when forgejo-server-url input is provided", async () => {
+      const getInput = vi.mocked(core.getInput);
+      getInput.mockImplementation((name: string) => {
+        const map: Record<string, string> = {
+          "forgejo-token": "test-token",
+          "anthropic-api-key": "",
+          "openai-api-key": "",
+          "llm-provider": "",
+          "config-path": "",
+          "llm-base-url": "",
+          "forgejo-server-url": "https://forgejo.example.com",
+        };
+        return map[name] ?? "";
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ login: "forgejo-bot" }),
+      }) as unknown as typeof global.fetch;
+
+      await main();
+
+      expect(github.getOctokit).toHaveBeenCalledWith(
+        "test-token",
+        { baseUrl: "https://forgejo.example.com/api/v1" },
+      );
+    });
+
+    it("normalizes serverUrl by trimming trailing slash before constructing baseUrl", async () => {
+      const getInput = vi.mocked(core.getInput);
+      getInput.mockImplementation((name: string) => {
+        const map: Record<string, string> = {
+          "forgejo-token": "test-token",
+          "anthropic-api-key": "",
+          "openai-api-key": "",
+          "llm-provider": "",
+          "config-path": "",
+          "llm-base-url": "",
+          "forgejo-server-url": "https://forgejo.example.com/",
+        };
+        return map[name] ?? "";
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ login: "forgejo-bot" }),
+      }) as unknown as typeof global.fetch;
+
+      await main();
+
+      expect(github.getOctokit).toHaveBeenCalledWith(
+        "test-token",
+        { baseUrl: "https://forgejo.example.com/api/v1" },
+      );
+    });
+  });
+
   describe("token validation", () => {
-     it("fails when forgejo-token input and GITHUB_TOKEN env are both missing", async () => {
+    it("fails when forgejo-token input and GITHUB_TOKEN env are both missing", async () => {
       const getInput = vi.mocked(core.getInput);
       getInput.mockImplementation((name: string) => {
         if (name === "forgejo-token") return "";
