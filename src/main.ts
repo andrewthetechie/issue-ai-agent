@@ -1,5 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { ActionContext, Logger } from "./types.js";
 import { runPipeline } from "./pipeline.js";
 import { handleComment } from "./comment-handler.js";
@@ -112,6 +114,21 @@ export async function main(): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Determine whether this module is being run directly as the action entrypoint.
+// Compares real (symlink-resolved) paths because runners execute the action via
+// a symlinked path (e.g. /var/run -> /run on the catthehacker images): Node
+// resolves symlinks for import.meta.url but not for process.argv[1], so a naive
+// `import.meta.url === file://${process.argv[1]}` check is false and main() never runs.
+function isDirectRun(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectRun()) {
   main();
 }

@@ -53812,6 +53812,10 @@ __nccwpck_require__.d(__webpack_exports__, {
 var core = __nccwpck_require__(7484);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(3228);
+;// CONCATENATED MODULE: external "node:fs"
+const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
+;// CONCATENATED MODULE: external "node:url"
+const external_node_url_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:url");
 ;// CONCATENATED MODULE: ./node_modules/@anthropic-ai/sdk/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f) {
     if (kind === "m")
@@ -73565,6 +73569,8 @@ async function handleComment(actx) {
 
 
 
+
+
 function formatMessage(msgOrObj, msg) {
     return typeof msgOrObj === "string"
         ? msgOrObj
@@ -73661,7 +73667,23 @@ async function main() {
         core.setFailed(`Action failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Determine whether this module is being run directly as the action entrypoint.
+// Compares real (symlink-resolved) paths because runners execute the action via
+// a symlinked path (e.g. /var/run -> /run on the catthehacker images): Node
+// resolves symlinks for import.meta.url but not for process.argv[1], so a naive
+// `import.meta.url === file://${process.argv[1]}` check is false and main() never runs.
+function isDirectRun() {
+    const entry = process.argv[1];
+    if (!entry)
+        return false;
+    try {
+        return (0,external_node_fs_namespaceObject.realpathSync)((0,external_node_url_namespaceObject.fileURLToPath)(import.meta.url)) === (0,external_node_fs_namespaceObject.realpathSync)(entry);
+    }
+    catch {
+        return false;
+    }
+}
+if (isDirectRun()) {
     main();
 }
 
