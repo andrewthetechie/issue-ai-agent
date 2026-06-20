@@ -48,6 +48,7 @@ export async function main(): Promise<void> {
     }
   }
 
+  const serverUrl = process.env.FORGEJO_SERVER_URL ?? process.env.GITHUB_SERVER_URL ?? "https://github.com";
   const octokit = github.getOctokit(token);
 
   let botLogin: string;
@@ -62,7 +63,6 @@ export async function main(): Promise<void> {
   }
 
   // Startup health-check: verify the Forgejo/Gitea API is reachable via GET /api/v1/user
-  const serverUrl = process.env.FORGEJO_SERVER_URL ?? process.env.GITHUB_SERVER_URL ?? "https://github.com";
   const baseUrl = serverUrl.replace(/\/$/, '');
   try {
     const healthResponse = await fetch(`${baseUrl}/api/v1/user`, {
@@ -89,7 +89,7 @@ export async function main(): Promise<void> {
   const actx: ActionContext = {
     owner,
     repo,
-    serverUrl: process.env.FORGEJO_SERVER_URL ?? process.env.GITHUB_SERVER_URL ?? "https://github.com",
+    serverUrl,
     token,
     botLogin,
     octokit,

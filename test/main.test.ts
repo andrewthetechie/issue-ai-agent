@@ -154,15 +154,15 @@ describe("main", () => {
     });
 
     it("sets botLogin from getAuthenticated response", async () => {
-      const mockGetAuthenticated = mockOctokit.rest.users.getAuthenticated;
-      mockGetAuthenticated.mockResolvedValueOnce({
-        data: { login: "forgejo-bot" },
-      });
-
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ login: "forgejo-bot" }),
       }) as unknown as typeof global.fetch;
+
+      const mockGetAuthenticated = mockOctokit.rest.users.getAuthenticated;
+      mockGetAuthenticated.mockResolvedValueOnce({
+        data: { login: "forgejo-bot" },
+      });
 
       await main();
 
