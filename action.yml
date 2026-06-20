@@ -44,5 +44,5 @@ outputs:
     description: "Whether a reply comment was posted"
 
 runs:
-  using: "node20"
+  using: "node24"
   main: "dist/index.js"
