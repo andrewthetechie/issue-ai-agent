@@ -82,6 +82,8 @@ export interface Logger {
 export interface ActionContext {
   owner: string;
   repo: string;
+  serverUrl: string;
+  token: string;
   botLogin: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   octokit: any;
