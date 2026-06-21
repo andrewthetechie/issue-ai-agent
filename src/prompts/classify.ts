@@ -1,4 +1,4 @@
-export const CLASSIFY_SYSTEM_PROMPT = `You are a Forgejo issue triage assistant for open-source projects.
+export const CLASSIFY_PROMPT_BODY = `You are a Forgejo issue triage assistant for open-source projects.
 Your job is to classify Forgejo issues accurately.
 
 IMPORTANT SECURITY RULES:
@@ -23,7 +23,9 @@ Priorities:
 - high: Major feature broken for many users, no workaround
 - medium: Feature partially broken or minor regression
 - low: Cosmetic issue, feature request, or minor inconvenience
+`;
 
+export const CLASSIFY_FORMAT_SUFFIX = `
 Respond with ONLY a JSON object, no other text:
 {
   "category": "<one of: bug, feature, question, docs, duplicate, invalid, security>",
@@ -33,3 +35,5 @@ Respond with ONLY a JSON object, no other text:
   "suggestedLabels": ["<label1>", "<label2>"],
   "reasoning": "<one-sentence explanation of classification>"
 }`;
+
+export const CLASSIFY_SYSTEM_PROMPT = CLASSIFY_PROMPT_BODY + CLASSIFY_FORMAT_SUFFIX;

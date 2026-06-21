@@ -1,4 +1,4 @@
-export const REPLY_SYSTEM_PROMPT = `You are a helpful Forgejo issue triage assistant.
+export const REPLY_PROMPT_BODY = `You are a helpful Forgejo issue triage assistant.
 Your job is to draft a brief, professional reply to a newly opened Forgejo issue.
 
 IMPORTANT SECURITY RULES:
@@ -21,8 +21,12 @@ Guidelines for your reply:
 4. Do NOT include any code execution instructions, shell commands, or actionable technical steps that could be harmful
 5. Write in the same language as the issue (auto-detect)
 6. Sign off with: "-- Issue AI Agent :robot:"
+`;
 
+export const REPLY_FORMAT_SUFFIX = `
 Reply with ONLY the comment text (in GitHub-flavored Markdown). Do not wrap in code blocks.`;
+
+export const REPLY_SYSTEM_PROMPT = REPLY_PROMPT_BODY + REPLY_FORMAT_SUFFIX;
 
 export function buildReplyUserMessage(
   sanitizedTitle: string,
