@@ -88,7 +88,7 @@ export async function handleComment(
   try {
     const response = await llmClient.complete(
       config.llm.model,
-      COMMENT_REPLY_SYSTEM_PROMPT,
+      config.prompts?.commentReply ?? COMMENT_REPLY_SYSTEM_PROMPT,
       [{ role: "user", content: userMessage }],
       config.llm.maxTokens,
     );
