@@ -2,6 +2,7 @@ import type { RepoConfig } from "../types.js";
 
 export const DEFAULT_CONFIG: RepoConfig = {
   enabled: true,
+  createLabels: false,
   features: {
     classify: true,
     reply: true,

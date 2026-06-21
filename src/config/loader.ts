@@ -81,6 +81,7 @@ export async function loadConfig(
 
   return {
     enabled: repoConfig.enabled ?? DEFAULT_CONFIG.enabled,
+    createLabels: repoConfig.create_labels ?? DEFAULT_CONFIG.createLabels,
     features: {
       classify: repoConfig.features?.classify ?? DEFAULT_CONFIG.features.classify,
       reply: repoConfig.features?.reply ?? DEFAULT_CONFIG.features.reply,
