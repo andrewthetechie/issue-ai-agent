@@ -59,6 +59,26 @@ export async function loadConfig(
     logger,
   );
 
+  // Validate unknown keys in label_mapping
+  if (repoConfig.label_mapping) {
+    const knownLabelKeys = new Set(Object.keys(DEFAULT_CONFIG.labelMapping));
+    for (const key of Object.keys(repoConfig.label_mapping)) {
+      if (!knownLabelKeys.has(key)) {
+        logger.warn({ key }, "Unknown label_mapping key ignored");
+      }
+    }
+  }
+
+  // Validate unknown keys in priority_label_mapping
+  if (repoConfig.priority_label_mapping) {
+    const knownPriorityKeys = new Set(Object.keys(DEFAULT_CONFIG.priorityLabelMapping));
+    for (const key of Object.keys(repoConfig.priority_label_mapping)) {
+      if (!knownPriorityKeys.has(key)) {
+        logger.warn({ key }, "Unknown priority_label_mapping key ignored");
+      }
+    }
+  }
+
   return {
     enabled: repoConfig.enabled ?? DEFAULT_CONFIG.enabled,
     features: {

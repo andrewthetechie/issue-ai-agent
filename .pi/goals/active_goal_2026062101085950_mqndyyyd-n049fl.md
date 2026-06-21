@@ -5,12 +5,12 @@
   "status": "active",
   "autoContinue": true,
   "usage": {
-    "tokensUsed": 806438,
-    "activeSeconds": 6416
+    "tokensUsed": 815628,
+    "activeSeconds": 6654
   },
   "sisyphus": false,
   "createdAt": "2026-06-21T06:08:59.509Z",
-  "updatedAt": "2026-06-21T06:50:43.491Z",
+  "updatedAt": "2026-06-21T06:54:47.593Z",
   "activePath": ".pi/goals/active_goal_2026062101085950_mqndyyyd-n049fl.md"
 }
 
@@ -23,5 +23,5 @@ Your goal is to complete prd-003 by working github issues one at a time. The git
 - Status: running
 - Auto-continue: on
 - Sisyphus mode: no
-- Time spent: 1h46m56s
-- Tokens used: 806K (806,438) tokens
+- Time spent: 1h50m54s
+- Tokens used: 816K (815,628) tokens
