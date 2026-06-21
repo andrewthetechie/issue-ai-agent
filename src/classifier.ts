@@ -61,7 +61,7 @@ export async function classifyIssue(
 
   const response = await llmClient.complete(
     config.llm.model,
-    CLASSIFY_SYSTEM_PROMPT,
+    config.prompts?.classify ?? CLASSIFY_SYSTEM_PROMPT,
     [{ role: "user", content: userContent }],
     config.llm.maxTokens,
   );

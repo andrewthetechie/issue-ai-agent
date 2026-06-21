@@ -45,7 +45,7 @@ export async function runPipeline(
 
   let config: RepoConfig;
   try {
-    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
+    config = await loadConfig(actx.owner, actx.repo, actx.octokit, log, actx.configPath);
   } catch (error) {
     log.error({ err: error }, "Failed to load config");
     result.errors.push({

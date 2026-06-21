@@ -27,7 +27,7 @@ export async function draftReply(
 
   const response = await llmClient.complete(
     config.llm.model,
-    REPLY_SYSTEM_PROMPT,
+    config.prompts?.reply ?? REPLY_SYSTEM_PROMPT,
     [{ role: "user", content: userMessage }],
     config.llm.maxTokens,
   );

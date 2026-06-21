@@ -50,7 +50,7 @@ export async function detectDuplicates(
 
   const response = await llmClient.complete(
     config.llm.model,
-    DUPLICATE_SYSTEM_PROMPT,
+    config.prompts?.duplicate ?? DUPLICATE_SYSTEM_PROMPT,
     [{ role: "user", content: userMessage }],
     config.llm.maxTokens,
   );

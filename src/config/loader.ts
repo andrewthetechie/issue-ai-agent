@@ -1,12 +1,14 @@
 import yaml from "js-yaml";
-import type { RepoConfig } from "../types.js";
+import type { Logger, RawPromptsConfig, RepoConfig } from "../types.js";
 import { DEFAULT_CONFIG } from "./schema.js";
+import { resolvePrompts } from "../prompts/resolver.js";
 
 export async function loadConfig(
   owner: string,
   repo: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   octokit: any,
+  logger: Logger,
   configPath: string = ".forgejo/issue-ai.yml",
 ): Promise<RepoConfig> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,6 +39,26 @@ export async function loadConfig(
     return DEFAULT_CONFIG;
   }
 
+  // Extract raw prompts config and normalize snake_case to camelCase
+  const rawPrompts: RawPromptsConfig | undefined = repoConfig.prompts
+    ? {
+        classify: repoConfig.prompts.classify,
+        reply: repoConfig.prompts.reply,
+        duplicate: repoConfig.prompts.duplicate,
+        commentReply:
+          repoConfig.prompts.commentReply ?? repoConfig.prompts.comment_reply,
+      }
+    : undefined;
+
+  // Resolve prompts (file-based and inline)
+  const resolvedPrompts = await resolvePrompts(
+    rawPrompts,
+    owner,
+    repo,
+    octokit,
+    logger,
+  );
+
   return {
     enabled: repoConfig.enabled ?? DEFAULT_CONFIG.enabled,
     features: {
@@ -58,5 +80,6 @@ export async function loadConfig(
       model: repoConfig.llm?.model ?? DEFAULT_CONFIG.llm.model,
       maxTokens: repoConfig.llm?.max_tokens ?? DEFAULT_CONFIG.llm.maxTokens,
     },
+    prompts: resolvedPrompts,
   };
 }

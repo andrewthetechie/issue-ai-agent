@@ -154,7 +154,19 @@ llm:
   provider: anthropic                   # "anthropic" or "openai"
   model: claude-haiku-4-5-20251001     # Model to use
   max_tokens: 2048                      # Max tokens per LLM response
+
+prompts:
+  classify: |                           # Override the classification prompt
+    You are a triage bot for my project...
+  reply:
+    file: prompts/custom-reply.md       # Or reference a file (relative to repo root)
+  duplicate: |                          # Override duplicate detection prompt
+    Custom duplicate detection instructions...
+  commentReply:                         # Override comment reply prompt
+    file: prompts/custom-comment-reply.md
 ```
+
+> **Note:** File paths in `prompts` are resolved relative to the repository root. Paths with `..` segments or absolute paths are rejected. If a prompt file is missing, the action logs a warning and falls back to the built-in default. Prompt files are capped at 75 KB. For prompts that require structured output (`classify`, `duplicate`), a format suffix is always appended to guarantee valid JSON — even when the prompt body is entirely custom.
 
 ### Config Reference
 
@@ -172,6 +184,10 @@ llm:
 | `llm.provider` | `"anthropic"` | LLM provider: `"anthropic"` or `"openai"` |
 | `llm.model` | `claude-haiku-4-5-20251001` | Model identifier |
 | `llm.max_tokens` | `2048` | Max tokens for LLM responses |
+| `prompts.classify` | *(built-in default)* | Custom system prompt for issue classification. Accepts an inline YAML multiline string or `{ file: "path/to/prompt.md" }` |
+| `prompts.reply` | *(built-in default)* | Custom system prompt for AI-drafted replies. Same inline-or-file format |
+| `prompts.duplicate` | *(built-in default)* | Custom system prompt for duplicate detection. Same inline-or-file format |
+| `prompts.commentReply` | *(built-in default)* | Custom system prompt for follow-up comment replies. Same inline-or-file format. Also accepts `comment_reply` (snake_case) as an alias |
 
 ## Action Inputs & Outputs
 
