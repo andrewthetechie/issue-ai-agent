@@ -80,6 +80,7 @@ export async function loadConfig(
       model: repoConfig.llm?.model ?? DEFAULT_CONFIG.llm.model,
       maxTokens: repoConfig.llm?.max_tokens ?? DEFAULT_CONFIG.llm.maxTokens,
     },
+    priorityLabelMapping: repoConfig.priority_label_mapping ?? DEFAULT_CONFIG.priorityLabelMapping,
     prompts: resolvedPrompts,
   };
 }
