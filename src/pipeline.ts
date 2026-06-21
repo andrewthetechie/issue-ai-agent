@@ -5,7 +5,7 @@ import { loadConfig } from "./config/loader.js";
 import { sanitizeIssueBody, sanitizeIssueTitle } from "./sanitizer.js";
 import { classifyIssue } from "./classifier.js";
 import { draftReply } from "./replier.js";
-import { resolveLabels, applyLabels } from "./forgejo/labels.js";
+import { resolveLabels, applyLabels, ensureLabelsExist } from "./forgejo/labels.js";
 import { searchSimilarIssues } from "./forgejo/search.js";
 import { detectDuplicates } from "./duplicate.js";
 
@@ -86,6 +86,22 @@ export async function runPipeline(
 
   if (!llmClient) {
     log.warn("No LLM API key configured — running in dev mode with mock responses");
+  }
+
+  if (config.createLabels) {
+    try {
+      await ensureLabelsExist(
+        actx.owner, actx.repo, config, actx.octokit, actx.logger,
+      );
+      log.info("Label creation completed");
+    } catch (error) {
+      log.warn({ err: error }, "Label creation failed");
+      result.errors.push({
+        step: "createLabels",
+        message: "Label creation failed",
+        cause: error instanceof Error ? error : new Error(String(error)),
+      });
+    }
   }
 
   if (config.features.classify) {
