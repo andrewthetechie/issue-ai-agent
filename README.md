@@ -127,6 +127,7 @@ Create `.forgejo/issue-ai.yml` in your repository to customize behavior. The bot
 ```yaml
 # .forgejo/issue-ai.yml
 enabled: true
+create_labels: false          # Auto-create missing labels (opt-in)
 
 features:
   classify: true        # Auto-classify issues
@@ -179,6 +180,7 @@ prompts:
 | Key | Default | Description |
 |-----|---------|-------------|
 | `enabled` | `true` | Master on/off switch |
+| `create_labels` | `false` | Auto-create missing labels before applying them (opt-in) |
 | `features.classify` | `true` | Enable issue classification + labeling |
 | `features.reply` | `true` | Enable AI-drafted reply comments |
 | `features.duplicateSearch` | `true` | Search for duplicate issues and link them |
@@ -247,6 +249,19 @@ priority_label_mapping: {}
 ```
 
 > **Note:** Unknown keys (e.g. `urgent`) in `priority_label_mapping` or `label_mapping` trigger a warning log but do not abort the workflow. Only the well-known keys (`critical`, `high`, `medium`, `low` for priority; `bug`, `feature`, `question`, `docs`, `duplicate`, `invalid`, `security` for labels) are recognized.
+
+### Create Labels
+
+By default, the bot only applies labels that already exist in your repository. If a label referenced by your `label_mapping` or `priority_label_mapping` doesn't exist, the application silently skips it.
+
+Set `create_labels: true` to have the bot automatically create any missing labels before classification:
+
+- **Opt-in:** Default is `false`; existing deployments are unaffected.
+- **Creates the deduplicated union** of all `label_mapping` + `priority_label_mapping` values (uses defaults if unset). For the default config: `bug, enhancement, question, documentation, duplicate, invalid, security, priority: critical, priority: high, priority: medium, priority: low`.
+- **Idempotent:** Runs once before classification per `issues` event. On steady state (all labels present), it makes one list call and zero creates.
+- **Best-effort & non-fatal:** If the token lacks label-write permission (`write:issue`) or a single create fails, it's logged as a warning and the rest of the pipeline still runs.
+- **Neutral styling:** Created labels get a grey colour (`#ededed`) and no description. Existing labels are never recoloured or modified.
+- **Issues only:** Applies to the `issues` event path, not issue comments.
 
 ## Action Inputs & Outputs
 
