@@ -36,6 +36,7 @@ export interface IssueClassification {
 }
 
 export type PromptConfigEntry = string | { file: string };
+export type PromptKey = "classify" | "reply" | "duplicate" | "commentReply";
 
 export interface RawPromptsConfig {
   classify?: PromptConfigEntry;
@@ -65,7 +66,7 @@ export interface RepoConfig {
     model: string;
     maxTokens: number;
   };
-  prompts?: Record<string, string>;
+  prompts?: Partial<Record<PromptKey, string>>;
 }
 
 export interface PipelineResult {

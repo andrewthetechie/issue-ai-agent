@@ -1,4 +1,4 @@
-import type { Logger, RawPromptsConfig } from "../types.js";
+import type { Logger, PromptKey, RawPromptsConfig } from "../types.js";
 import {
   CLASSIFY_FORMAT_SUFFIX,
   REPLY_FORMAT_SUFFIX,
@@ -6,10 +6,13 @@ import {
   COMMENT_REPLY_FORMAT_SUFFIX,
 } from "./index.js";
 
-const MAX_PROMPT_SIZE = 75 * 1024; // 75KB
+// Cap measured in characters (UTF-16 code units), not bytes. ~76.8K chars,
+// generous enough for any real prompt while preventing context blow-up from a
+// misconfigured path pointing at a large file.
+const MAX_PROMPT_SIZE = 75 * 1024;
 const PATH_REGEX = /^[a-z0-9_./-]+$/i;
 
-const FORMAT_SUFFIXES: Record<string, string> = {
+const FORMAT_SUFFIXES: Record<PromptKey, string> = {
   classify: CLASSIFY_FORMAT_SUFFIX,
   reply: REPLY_FORMAT_SUFFIX,
   duplicate: DUPLICATE_FORMAT_SUFFIX,
@@ -52,47 +55,62 @@ export async function resolvePrompts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   octokit: any,
   logger: Logger,
-): Promise<Record<string, string> | undefined> {
+): Promise<Partial<Record<PromptKey, string>> | undefined> {
   if (raw === undefined) {
     return undefined;
   }
 
-  const resolved: Record<string, string> = {};
+  const resolved: Partial<Record<PromptKey, string>> = {};
 
   for (const [key, entry] of Object.entries(raw)) {
     if (entry === undefined) {
       continue;
     }
 
+    const suffix = FORMAT_SUFFIXES[key as PromptKey];
+    if (suffix === undefined) {
+      // Unknown key — RawPromptsConfig should prevent this. Surface as a bug.
+      logger.error(
+        { promptKey: key },
+        `No format suffix registered for prompt key; skipping`,
+      );
+      continue;
+    }
+
+    if (typeof entry === "string") {
+      // Inline prompt: trim and append suffix
+      resolved[key as PromptKey] = entry.trim() + suffix;
+      continue;
+    }
+
+    // File-based prompt — validate shape. A bad shape is a config error.
+    if (
+      entry === null ||
+      typeof entry !== "object" ||
+      typeof entry.file !== "string"
+    ) {
+      logger.error(
+        { promptKey: key },
+        `Prompt entry must be a string or { file: string }; using built-in default`,
+      );
+      continue;
+    }
+
+    const filePath = entry.file;
+
+    // Validate path before any network call. An invalid path is a config error.
     try {
-      const suffix = FORMAT_SUFFIXES[key];
-      if (suffix === undefined) {
-        // Unknown key — RawPromptsConfig should prevent this. Surface as a bug.
-        throw new Error(`No format suffix registered for prompt key: ${key}`);
-      }
-
-      if (typeof entry === "string") {
-        // Inline prompt: trim and append suffix
-        resolved[key] = entry.trim() + suffix;
-        continue;
-      }
-
-      // File-based prompt — validate shape before doing anything else.
-      if (
-        entry === null ||
-        typeof entry !== "object" ||
-        typeof entry.file !== "string"
-      ) {
-        throw new Error(
-          `Prompt entry must be a string or { file: string }: ${key}`,
-        );
-      }
-
-      const filePath = entry.file;
-
-      // Validate path before any network call.
       validatePath(filePath);
+    } catch (err: unknown) {
+      logger.error(
+        { promptKey: key, filePath, err },
+        `Invalid prompt file path; using built-in default`,
+      );
+      continue;
+    }
 
+    // Network fetch — transient failures are recoverable, log at warn.
+    try {
       let content = await fetchFileContent(owner, repo, filePath, octokit);
 
       // Truncate if over the size cap.
@@ -104,14 +122,13 @@ export async function resolvePrompts(
         content = content.slice(0, MAX_PROMPT_SIZE);
       }
 
-      resolved[key] = content + suffix;
+      resolved[key as PromptKey] = content + suffix;
     } catch (err: unknown) {
       logger.warn(
-        { promptKey: key, err },
-        `Failed to resolve custom prompt, using built-in default`,
+        { promptKey: key, filePath, err },
+        `Failed to fetch custom prompt file, using built-in default`,
       );
       // Skip this key — consumer falls back to the built-in default.
-      continue;
     }
   }
 

@@ -54,8 +54,8 @@ describe("loadConfig with prompts", () => {
       "owner",
       "repo",
       mockOctokit,
-      ".forgejo/issue-ai.yml",
       mockLogger,
+      ".forgejo/issue-ai.yml",
     );
 
     expect(config.prompts).toBeUndefined();
@@ -79,8 +79,8 @@ describe("loadConfig with prompts", () => {
       "owner",
       "repo",
       mockOctokit,
-      ".forgejo/issue-ai.yml",
       mockLogger,
+      ".forgejo/issue-ai.yml",
     );
 
     expect(config.prompts).toBeDefined();
@@ -116,8 +116,8 @@ describe("loadConfig with prompts", () => {
       "owner",
       "repo",
       mockOctokit,
-      ".forgejo/issue-ai.yml",
       mockLogger,
+      ".forgejo/issue-ai.yml",
     );
 
     expect(config.prompts).toBeDefined();
@@ -141,8 +141,8 @@ describe("loadConfig with prompts", () => {
       "owner",
       "repo",
       mockOctokit,
-      ".forgejo/issue-ai.yml",
       mockLogger,
+      ".forgejo/issue-ai.yml",
     );
 
     expect(config.prompts).toBeDefined();

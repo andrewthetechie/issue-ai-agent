@@ -100,7 +100,7 @@ describe("resolvePrompts", () => {
     expect(result).toBeUndefined();
   });
 
-  it("logs warning and omits key for path traversal (no network call)", async () => {
+  it("logs error and omits key for path traversal (no network call)", async () => {
     const result = await resolvePrompts(
       { classify: { file: "../../.env" } },
       "owner",
@@ -109,12 +109,12 @@ describe("resolvePrompts", () => {
       mockLogger,
     );
 
-    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(mockLogger.error).toHaveBeenCalled();
     expect(result).toBeUndefined();
     expect(mockOctokit.rest.repos.getContent).not.toHaveBeenCalled();
   });
 
-  it("logs warning and omits key for absolute path (no network call)", async () => {
+  it("logs error and omits key for absolute path (no network call)", async () => {
     const result = await resolvePrompts(
       { classify: { file: "/etc/passwd" } },
       "owner",
@@ -123,12 +123,12 @@ describe("resolvePrompts", () => {
       mockLogger,
     );
 
-    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(mockLogger.error).toHaveBeenCalled();
     expect(result).toBeUndefined();
     expect(mockOctokit.rest.repos.getContent).not.toHaveBeenCalled();
   });
 
-  it("logs warning and omits key for invalid characters in path", async () => {
+  it("logs error and omits key for invalid characters in path", async () => {
     const result = await resolvePrompts(
       { classify: { file: "prompts/custom file.md" } },
       "owner",
@@ -137,12 +137,12 @@ describe("resolvePrompts", () => {
       mockLogger,
     );
 
-    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(mockLogger.error).toHaveBeenCalled();
     expect(result).toBeUndefined();
     expect(mockOctokit.rest.repos.getContent).not.toHaveBeenCalled();
   });
 
-  it("logs warning and omits key for malformed entry without file", async () => {
+  it("logs error and omits key for malformed entry without file", async () => {
     const result = await resolvePrompts(
       // @ts-expect-error — intentionally malformed config from YAML
       { classify: { path: "prompts/x.md" } },
@@ -152,7 +152,7 @@ describe("resolvePrompts", () => {
       mockLogger,
     );
 
-    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(mockLogger.error).toHaveBeenCalled();
     expect(result).toBeUndefined();
     expect(mockOctokit.rest.repos.getContent).not.toHaveBeenCalled();
   });
