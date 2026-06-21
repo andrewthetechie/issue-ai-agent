@@ -143,6 +143,12 @@ label_mapping:
   invalid: ["invalid"]
   security: ["security"]
 
+priority_label_mapping:
+  critical: ["priority: critical"]
+  high: ["priority: high"]
+  medium: ["priority: medium"]
+  low: ["priority: low"]
+
 security:
   max_issue_length: 10000    # Max chars of issue body to process
 
@@ -178,6 +184,7 @@ prompts:
 | `features.duplicateSearch` | `true` | Search for duplicate issues and link them |
 | `features.commentReply` | `true` | Reply to follow-up comments on issues |
 | `label_mapping` | *(see defaults above)* | Maps AI categories to your repo's label names |
+| `priority_label_mapping` | *(see defaults above)* | Maps AI priority levels to your repo's priority label names |
 | `security.max_issue_length` | `10000` | Truncate issue body beyond this length |
 | `exclude.labels` | `["wontfix", "skip-ai"]` | Skip issues carrying these labels |
 | `exclude.users` | `["dependabot[bot]"]` | Skip issues opened by these users |
@@ -188,6 +195,58 @@ prompts:
 | `prompts.reply` | *(built-in default)* | Custom system prompt for AI-drafted replies. Same inline-or-file format |
 | `prompts.duplicate` | *(built-in default)* | Custom system prompt for duplicate detection. Same inline-or-file format |
 | `prompts.commentReply` | *(built-in default)* | Custom system prompt for follow-up comment replies. Same inline-or-file format. Also accepts `comment_reply` (snake_case) as an alias |
+
+### Priority Label Mapping
+
+By default, the bot applies priority labels like `priority: high` and `priority: critical`. Use `priority_label_mapping` to customize these to match your repository's labelling convention.
+
+**Default behaviour** (when the key is absent):
+
+```yaml
+priority_label_mapping:
+  critical: ["priority: critical"]
+  high: ["priority: high"]
+  medium: ["priority: medium"]
+  low: ["priority: low"]
+```
+
+**Full custom mapping** — replace with your own label names:
+
+```yaml
+priority_label_mapping:
+  critical: ["P0"]
+  high: ["P1"]
+  medium: ["P2"]
+  low: ["P3"]
+```
+
+**Multiple labels per priority** — apply more than one label for a given priority:
+
+```yaml
+priority_label_mapping:
+  critical: ["P0", "urgent"]
+  high: ["P1"]
+  medium: ["P2"]
+  low: ["P3"]
+```
+
+**Suppress a single priority tier** — omit a key or set it to an empty array:
+
+```yaml
+priority_label_mapping:
+  critical: ["P0"]
+  high: ["P1"]
+  medium: ["P2"]
+  # low is omitted — no label will be applied for low-priority issues
+```
+
+**Disable all priority labels** — set the mapping to an empty object:
+
+```yaml
+priority_label_mapping: {}
+```
+
+> **Note:** Unknown keys (e.g. `urgent`) in `priority_label_mapping` or `label_mapping` trigger a warning log but do not abort the workflow. Only the well-known keys (`critical`, `high`, `medium`, `low` for priority; `bug`, `feature`, `question`, `docs`, `duplicate`, `invalid`, `security` for labels) are recognized.
 
 ## Action Inputs & Outputs
 
