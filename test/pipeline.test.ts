@@ -272,6 +272,12 @@ describe("runPipeline", () => {
         "owner", "repo", expect.objectContaining({ createLabels: true }),
         expect.anything(), expect.anything(),
       );
+      // ensureLabelsExist must be called before classifyIssue.
+      // addLabels (via applyLabels) runs after classifyIssue in the pipeline,
+      // so ordering against it is a sufficient proxy.
+      const ensureOrder = vi.mocked(ensureLabelsExist).mock.invocationCallOrder[0];
+      const addLabelsOrder = vi.mocked(actx.octokit.rest.issues.addLabels).mock.invocationCallOrder[0];
+      expect(ensureOrder).toBeLessThan(addLabelsOrder);
       // Classification and reply still run
       expect(result.classification).not.toBeNull();
       expect(result.replyPosted).toBe(true);

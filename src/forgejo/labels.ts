@@ -1,6 +1,8 @@
 import type { IssueClassification, Logger, RepoConfig } from "../types.js";
 
 const LABEL_PAGE_LIMIT = 100;
+const MAX_LABEL_PAGES = 100; // safety bound: 100 pages * 100/page = 10k labels
+const DEFAULT_LABEL_COLOR = "#ededed";
 
 export function resolveLabels(
   classification: IssueClassification,
@@ -59,6 +61,17 @@ export async function applyLabels(
   }
 }
 
+/**
+ * Ensures every label referenced by config.labelMapping / config.priorityLabelMapping
+ * exists in the repo, creating only the missing ones. Idempotent and best-effort.
+ *
+ * Failure contract is intentionally asymmetric:
+ *  - The existing-labels list call THROWS on failure; the caller (runPipeline) records
+ *    a `createLabels` PipelineError and continues the rest of the pipeline.
+ *  - Individual create failures are swallowed with a warning (one bad label never aborts
+ *    the rest). A `422` whose message contains "already exists" is treated as a benign
+ *    list/create race and swallowed silently.
+ */
 export async function ensureLabelsExist(
   owner: string,
   repo: string,
@@ -83,7 +96,7 @@ export async function ensureLabelsExist(
   // 2. List existing labels with pagination
   const existingNames = new Set<string>();
   let page = 1;
-  while (true) {
+  while (page <= MAX_LABEL_PAGES) {
     const response = await octokit.request("GET /repos/{owner}/{repo}/labels", {
       owner,
       repo,
@@ -91,11 +104,11 @@ export async function ensureLabelsExist(
       page,
     });
     const labels = response.data;
+    if (labels.length === 0) {
+      break;
+    }
     for (const label of labels) {
       existingNames.add(label.name);
-    }
-    if (labels.length < LABEL_PAGE_LIMIT) {
-      break;
     }
     page++;
   }
@@ -112,7 +125,7 @@ export async function ensureLabelsExist(
         owner,
         repo,
         name,
-        color: "ededed",
+        color: DEFAULT_LABEL_COLOR,
         description: "",
       });
     } catch (error) {

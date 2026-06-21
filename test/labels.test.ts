@@ -235,19 +235,19 @@ describe("ensureLabelsExist", () => {
     // Should have created 4 labels (bug, enhancement, P0, P1)
     expect(mockRequest).toHaveBeenCalledWith(
       "POST /repos/{owner}/{repo}/labels",
-      expect.objectContaining({ name: "bug", color: "ededed", description: "" }),
+      expect.objectContaining({ name: "bug", color: "#ededed", description: "" }),
     );
     expect(mockRequest).toHaveBeenCalledWith(
       "POST /repos/{owner}/{repo}/labels",
-      expect.objectContaining({ name: "enhancement", color: "ededed", description: "" }),
+      expect.objectContaining({ name: "enhancement", color: "#ededed", description: "" }),
     );
     expect(mockRequest).toHaveBeenCalledWith(
       "POST /repos/{owner}/{repo}/labels",
-      expect.objectContaining({ name: "P0", color: "ededed", description: "" }),
+      expect.objectContaining({ name: "P0", color: "#ededed", description: "" }),
     );
     expect(mockRequest).toHaveBeenCalledWith(
       "POST /repos/{owner}/{repo}/labels",
-      expect.objectContaining({ name: "P1", color: "ededed", description: "" }),
+      expect.objectContaining({ name: "P1", color: "#ededed", description: "" }),
     );
   });
 
@@ -276,14 +276,16 @@ describe("ensureLabelsExist", () => {
       labelMapping: { bug: ["bug"], feature: ["enhancement"] },
       priorityLabelMapping: {},
     };
-    mockRequest.mockResolvedValue({
-      data: [makeLabel("bug"), makeLabel("enhancement")],
-    });
+    mockRequest
+      .mockResolvedValueOnce({
+        data: [makeLabel("bug"), makeLabel("enhancement")],
+      })
+      .mockResolvedValueOnce({ data: [] }); // empty page terminates
 
     await ensureLabelsExist("owner", "repo", config, mockOctokit, mockLogger);
 
-    // Only list call, no create calls
-    expect(mockRequest).toHaveBeenCalledTimes(1);
+    // 2 list calls (page 1 + empty page), no create calls
+    expect(mockRequest).toHaveBeenCalledTimes(2);
     expect(mockRequest).toHaveBeenCalledWith(
       "GET /repos/{owner}/{repo}/labels",
       expect.objectContaining({ limit: 100, page: 1 }),
@@ -296,7 +298,9 @@ describe("ensureLabelsExist", () => {
       labelMapping: { bug: ["bug"] },
       priorityLabelMapping: {},
     };
-    mockRequest.mockResolvedValue({ data: [makeLabel("Bug")] });
+    mockRequest
+      .mockResolvedValueOnce({ data: [makeLabel("Bug")] })
+      .mockResolvedValueOnce({ data: [] });
 
     await ensureLabelsExist("owner", "repo", config, mockOctokit, mockLogger);
 
@@ -323,12 +327,13 @@ describe("ensureLabelsExist", () => {
 
     mockRequest
       .mockResolvedValueOnce({ data: page1Labels })
-      .mockResolvedValueOnce({ data: page2Labels });
+      .mockResolvedValueOnce({ data: page2Labels })
+      .mockResolvedValueOnce({ data: [] }); // empty page terminates
 
     await ensureLabelsExist("owner", "repo", config, mockOctokit, mockLogger);
 
-    // Should have made 2 list calls (page 1 and page 2), no create calls
-    expect(mockRequest).toHaveBeenCalledTimes(2);
+    // Should have made 3 list calls (page 1, page 2, empty page terminates)
+    expect(mockRequest).toHaveBeenCalledTimes(3);
     expect(mockRequest).toHaveBeenNthCalledWith(
       1,
       "GET /repos/{owner}/{repo}/labels",
@@ -427,6 +432,27 @@ describe("ensureLabelsExist", () => {
     );
   });
 
+  it("keeps paginating when the server returns short (capped) non-empty pages", async () => {
+    const config: RepoConfig = {
+      ...DEFAULT_CONFIG,
+      labelMapping: { bug: ["bug"], feature: ["enhancement"] },
+      priorityLabelMapping: {},
+    };
+    // Server caps page size below LABEL_PAGE_LIMIT: each page has 1 item (< 100) but more exist.
+    mockRequest
+      .mockResolvedValueOnce({ data: [{ name: "bug" }] })        // page 1, short but non-empty
+      .mockResolvedValueOnce({ data: [{ name: "enhancement" }] }) // page 2
+      .mockResolvedValueOnce({ data: [] });                       // page 3 terminates
+
+    await ensureLabelsExist("owner", "repo", config, mockOctokit, mockLogger);
+
+    // Both desired labels already exist across pages → no creates.
+    const createCalls = mockRequest.mock.calls.filter(
+      (call: unknown[]) => call[0] === "POST /repos/{owner}/{repo}/labels",
+    );
+    expect(createCalls).toHaveLength(0);
+  });
+
   it("list-call failure throws", async () => {
     const config: RepoConfig = {
       ...DEFAULT_CONFIG,
@@ -455,7 +481,7 @@ describe("ensureLabelsExist", () => {
     );
     expect(createCall).toBeDefined();
     expect(createCall![1]).toMatchObject({
-      color: "ededed",
+      color: "#ededed",
       description: "",
     });
   });
