@@ -363,3 +363,66 @@ describe("loadConfig with prompts", () => {
     expect(config.prompts!["comment_reply"]).toBeUndefined();
   });
 });
+
+describe("loadConfig with create_labels", () => {
+  let mockOctokit: any;
+  let mockLogger: Logger;
+
+  beforeEach(() => {
+    mockLogger = {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: () => mockLogger,
+    };
+    mockOctokit = {
+      rest: {
+        repos: {
+          getContent: vi.fn(),
+        },
+      },
+    };
+  });
+
+  it("returns createLabels: true when create_labels: true in YAML", async () => {
+    mockOctokit.rest.repos.getContent.mockResolvedValue({
+      data: {
+        content: Buffer.from(
+          [
+            "enabled: true",
+            "create_labels: true",
+          ].join("\n"),
+        ).toString("base64"),
+      },
+    });
+
+    const config = await loadConfig(
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+      ".forgejo/issue-ai.yml",
+    );
+
+    expect(config.createLabels).toBe(true);
+  });
+
+  it("returns createLabels: false when create_labels is omitted", async () => {
+    mockOctokit.rest.repos.getContent.mockResolvedValue({
+      data: {
+        content: Buffer.from("enabled: true\n").toString("base64"),
+      },
+    });
+
+    const config = await loadConfig(
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+      ".forgejo/issue-ai.yml",
+    );
+
+    expect(config.createLabels).toBe(false);
+  });
+});

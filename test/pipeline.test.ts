@@ -45,10 +45,20 @@ vi.mock("../src/forgejo/search.js", () => ({
   searchSimilarIssues: vi.fn().mockResolvedValue([]),
 }));
 
+// Mock labels module to spy on ensureLabelsExist while keeping real resolveLabels/applyLabels
+vi.mock("../src/forgejo/labels.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/forgejo/labels.js")>();
+  return {
+    ...actual,
+    ensureLabelsExist: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
 // Mock config loader — inline default config to avoid hoisting issues
 vi.mock("../src/config/loader.js", () => ({
   loadConfig: vi.fn().mockResolvedValue({
     enabled: true,
+    createLabels: false,
     features: { classify: true, reply: true, duplicateSearch: true, commentReply: true },
     labelMapping: {
       bug: ["bug"], feature: ["enhancement"], question: ["question"],
@@ -231,5 +241,103 @@ describe("runPipeline", () => {
       { number: 42, title: "Same crash", url: "https://github.com/owner/repo/issues/42" },
     ]);
     expect(result.replyPosted).toBe(true);
+  });
+
+  describe("createLabels", () => {
+    it("does not call ensureLabelsExist when createLabels is false", async () => {
+      const { ensureLabelsExist } = await import("../src/forgejo/labels.js");
+      vi.mocked(ensureLabelsExist).mockResolvedValueOnce(undefined);
+
+      const { loadConfig } = await import("../src/config/loader.js");
+      vi.mocked(loadConfig).mockResolvedValueOnce({ ...DEFAULT_CONFIG, createLabels: false });
+
+      const actx = createMockActionContext();
+      await runPipeline(actx);
+
+      expect(ensureLabelsExist).not.toHaveBeenCalled();
+    });
+
+    it("calls ensureLabelsExist when createLabels is true, before classify", async () => {
+      const { ensureLabelsExist } = await import("../src/forgejo/labels.js");
+      vi.mocked(ensureLabelsExist).mockResolvedValueOnce(undefined);
+
+      const { loadConfig } = await import("../src/config/loader.js");
+      vi.mocked(loadConfig).mockResolvedValueOnce({ ...DEFAULT_CONFIG, createLabels: true });
+
+      const actx = createMockActionContext();
+      const result = await runPipeline(actx);
+
+      expect(ensureLabelsExist).toHaveBeenCalledTimes(1);
+      expect(ensureLabelsExist).toHaveBeenCalledWith(
+        "owner", "repo", expect.objectContaining({ createLabels: true }),
+        expect.anything(), expect.anything(),
+      );
+      // ensureLabelsExist must be called before classifyIssue.
+      // addLabels (via applyLabels) runs after classifyIssue in the pipeline,
+      // so ordering against it is a sufficient proxy.
+      const ensureOrder = vi.mocked(ensureLabelsExist).mock.invocationCallOrder[0];
+      const addLabelsOrder = vi.mocked(actx.octokit.rest.issues.addLabels).mock.invocationCallOrder[0];
+      expect(ensureOrder).toBeLessThan(addLabelsOrder);
+      // Classification and reply still run
+      expect(result.classification).not.toBeNull();
+      expect(result.replyPosted).toBe(true);
+    });
+
+    it("records createLabels error but continues classify and reply when ensureLabelsExist throws", async () => {
+      const { ensureLabelsExist } = await import("../src/forgejo/labels.js");
+      vi.mocked(ensureLabelsExist).mockReset();
+      vi.mocked(ensureLabelsExist).mockRejectedValue(new Error("list call failed"));
+
+      const { loadConfig } = await import("../src/config/loader.js");
+      vi.mocked(loadConfig).mockResolvedValueOnce({ ...DEFAULT_CONFIG, createLabels: true });
+
+      const actx = createMockActionContext();
+      const result = await runPipeline(actx);
+
+      expect(ensureLabelsExist).toHaveBeenCalledTimes(1);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ step: "createLabels", message: "Label creation failed" }),
+        ]),
+      );
+      // Classification and reply still run despite creation error
+      expect(result.classification).not.toBeNull();
+      expect(result.replyPosted).toBe(true);
+    });
+
+    it("does not call ensureLabelsExist when issue is excluded", async () => {
+      const { ensureLabelsExist } = await import("../src/forgejo/labels.js");
+      vi.mocked(ensureLabelsExist).mockResolvedValueOnce(undefined);
+
+      const { loadConfig } = await import("../src/config/loader.js");
+      vi.mocked(loadConfig).mockResolvedValueOnce({ ...DEFAULT_CONFIG, createLabels: true });
+
+      const actx = createMockActionContext({
+        payload: {
+          ...createMockActionContext().payload,
+          issue: {
+            ...createMockActionContext().payload.issue,
+            labels: [{ name: "skip-ai", id: 1 }],
+          },
+        },
+      });
+
+      const result = await runPipeline(actx);
+      expect(ensureLabelsExist).not.toHaveBeenCalled();
+      expect(result.classification).toBeNull();
+    });
+
+    it("does not call ensureLabelsExist when repo is disabled", async () => {
+      const { ensureLabelsExist } = await import("../src/forgejo/labels.js");
+      vi.mocked(ensureLabelsExist).mockResolvedValueOnce(undefined);
+
+      const { loadConfig } = await import("../src/config/loader.js");
+      vi.mocked(loadConfig).mockResolvedValueOnce({ ...DEFAULT_CONFIG, enabled: false, createLabels: true });
+
+      const actx = createMockActionContext();
+      const result = await runPipeline(actx);
+      expect(ensureLabelsExist).not.toHaveBeenCalled();
+      expect(result.classification).toBeNull();
+    });
   });
 });

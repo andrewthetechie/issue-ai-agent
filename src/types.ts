@@ -47,6 +47,7 @@ export interface RawPromptsConfig {
 
 export interface RepoConfig {
   enabled: boolean;
+  createLabels: boolean;
   features: {
     classify: boolean;
     reply: boolean;
@@ -78,7 +79,7 @@ export interface PipelineResult {
 }
 
 export interface PipelineError {
-  step: "classify" | "label" | "reply" | "duplicate";
+  step: "classify" | "label" | "reply" | "duplicate" | "createLabels";
   message: string;
   cause?: Error;
 }
