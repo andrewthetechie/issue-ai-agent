@@ -54,6 +54,7 @@ export interface RepoConfig {
     commentReply: boolean;
   };
   labelMapping: Record<string, string[]>;
+  priorityLabelMapping: Record<string, string[]>;
   security: {
     maxIssueLength: number;
   };

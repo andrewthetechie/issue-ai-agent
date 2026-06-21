@@ -11,7 +11,8 @@ export function resolveLabels(
     mappedLabels.push(...categoryLabels);
   }
 
-  mappedLabels.push(`priority: ${classification.priority}`);
+  const priorityLabels = config.priorityLabelMapping[classification.priority] ?? [];
+  mappedLabels.push(...priorityLabels);
 
   return [...new Set(mappedLabels)];
 }

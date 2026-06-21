@@ -54,6 +54,12 @@ vi.mock("../src/config/loader.js", () => ({
       bug: ["bug"], feature: ["enhancement"], question: ["question"],
       docs: ["documentation"], duplicate: ["duplicate"], invalid: ["invalid"], security: ["security"],
     },
+    priorityLabelMapping: {
+      critical: ["priority: critical"],
+      high: ["priority: high"],
+      medium: ["priority: medium"],
+      low: ["priority: low"],
+    },
     security: { maxIssueLength: 10000 },
     exclude: { labels: ["wontfix", "skip-ai"], users: ["dependabot[bot]"] },
     llm: { provider: "anthropic", model: "claude-haiku-4-5-20251001", maxTokens: 2048 },

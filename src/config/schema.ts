@@ -17,6 +17,12 @@ export const DEFAULT_CONFIG: RepoConfig = {
     invalid: ["invalid"],
     security: ["security"],
   },
+  priorityLabelMapping: {
+    critical: ["priority: critical"],
+    high: ["priority: high"],
+    medium: ["priority: medium"],
+    low: ["priority: low"],
+  },
   security: {
     maxIssueLength: 10000,
   },
