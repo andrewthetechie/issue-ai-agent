@@ -44,7 +44,7 @@ export async function handleComment(
   // Load config only after cheap structural checks pass.
   let config: RepoConfig;
   try {
-    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath);
+    config = await loadConfig(actx.owner, actx.repo, actx.octokit, actx.configPath, actx.logger);
   } catch (error) {
     actx.logger.error({ err: error }, "Failed to load config for comment handler");
     return;
