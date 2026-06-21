@@ -100,46 +100,98 @@ describe("resolvePrompts", () => {
     expect(result).toBeUndefined();
   });
 
-  it("throws error for path traversal without making network call", async () => {
-    await expect(
-      resolvePrompts(
-        { classify: { file: "../../.env" } },
-        "owner",
-        "repo",
-        mockOctokit,
-        mockLogger,
-      ),
-    ).rejects.toThrow("'..'");
+  it("logs warning and omits key for path traversal (no network call)", async () => {
+    const result = await resolvePrompts(
+      { classify: { file: "../../.env" } },
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+    );
 
+    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(result).toBeUndefined();
     expect(mockOctokit.rest.repos.getContent).not.toHaveBeenCalled();
   });
 
-  it("throws error for absolute path without making network call", async () => {
-    await expect(
-      resolvePrompts(
-        { classify: { file: "/etc/passwd" } },
-        "owner",
-        "repo",
-        mockOctokit,
-        mockLogger,
-      ),
-    ).rejects.toThrow("absolute");
+  it("logs warning and omits key for absolute path (no network call)", async () => {
+    const result = await resolvePrompts(
+      { classify: { file: "/etc/passwd" } },
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+    );
 
+    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(result).toBeUndefined();
     expect(mockOctokit.rest.repos.getContent).not.toHaveBeenCalled();
   });
 
-  it("throws error for invalid characters in path", async () => {
-    await expect(
-      resolvePrompts(
-        { classify: { file: "prompts/custom file.md" } },
-        "owner",
-        "repo",
-        mockOctokit,
-        mockLogger,
-      ),
-    ).rejects.toThrow("invalid characters");
+  it("logs warning and omits key for invalid characters in path", async () => {
+    const result = await resolvePrompts(
+      { classify: { file: "prompts/custom file.md" } },
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+    );
 
+    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(result).toBeUndefined();
     expect(mockOctokit.rest.repos.getContent).not.toHaveBeenCalled();
+  });
+
+  it("logs warning and omits key for malformed entry without file", async () => {
+    const result = await resolvePrompts(
+      // @ts-expect-error — intentionally malformed config from YAML
+      { classify: { path: "prompts/x.md" } },
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+    );
+
+    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(result).toBeUndefined();
+    expect(mockOctokit.rest.repos.getContent).not.toHaveBeenCalled();
+  });
+
+  it("logs warning and omits key when octokit fails with non-404", async () => {
+    mockOctokit.rest.repos.getContent.mockRejectedValue({
+      status: 500,
+      message: "Internal Server Error",
+    });
+
+    const result = await resolvePrompts(
+      { reply: { file: "prompts/custom-reply.md" } },
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+    );
+
+    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(result).toBeUndefined();
+  });
+
+  it("accepts uppercase characters in file path", async () => {
+    mockOctokit.rest.repos.getContent.mockResolvedValue({
+      data: {
+        content: Buffer.from("Custom prompt").toString("base64"),
+        type: "file",
+      },
+    });
+
+    const result = await resolvePrompts(
+      { classify: { file: "Prompts/Custom.md" } },
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+    );
+
+    expect(result!.classify).toContain("Custom prompt");
   });
 
   it("truncates oversized content and logs warning", async () => {

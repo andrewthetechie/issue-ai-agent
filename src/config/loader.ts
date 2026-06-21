@@ -9,7 +9,7 @@ export async function loadConfig(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   octokit: any,
   configPath: string = ".forgejo/issue-ai.yml",
-  logger?: Logger,
+  logger: Logger,
 ): Promise<RepoConfig> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let repoConfig: any;
@@ -51,20 +51,12 @@ export async function loadConfig(
     : undefined;
 
   // Resolve prompts (file-based and inline)
-  // Fallback no-op logger if none provided
-  const noopLogger: Logger = {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
-    child: () => noopLogger,
-  };
   const resolvedPrompts = await resolvePrompts(
     rawPrompts,
     owner,
     repo,
     octokit,
-    logger ?? noopLogger,
+    logger,
   );
 
   return {

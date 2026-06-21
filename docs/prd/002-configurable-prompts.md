@@ -93,7 +93,7 @@ No function signatures change. The `config` object is already available at every
 Prompt file paths are validated before fetching:
 - Paths starting with `/` are rejected (absolute paths not allowed).
 - Paths containing `..` segments are rejected (path traversal prevention).
-- Only relative paths with lowercase letters, digits, `-`, `_`, `.`, and `/` are accepted.
+- Only relative paths with letters (case-insensitive), digits, `-`, `_`, `.`, and `/` are accepted.
 
 ### Prompt file format
 

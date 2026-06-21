@@ -16,10 +16,6 @@ const FORMAT_SUFFIXES: Record<string, string> = {
   commentReply: COMMENT_REPLY_FORMAT_SUFFIX,
 };
 
-interface OctokitError extends Error {
-  status: number;
-}
-
 function validatePath(path: string): void {
   if (path.startsWith("/")) {
     throw new Error(`Prompt file path must not be absolute: ${path}`);
@@ -68,45 +64,55 @@ export async function resolvePrompts(
       continue;
     }
 
-    const suffix = FORMAT_SUFFIXES[key] || "";
+    try {
+      const suffix = FORMAT_SUFFIXES[key];
+      if (suffix === undefined) {
+        // Unknown key — RawPromptsConfig should prevent this. Surface as a bug.
+        throw new Error(`No format suffix registered for prompt key: ${key}`);
+      }
 
-    if (typeof entry === "string") {
-      // Inline prompt: trim and append suffix
-      resolved[key] = entry.trim() + suffix;
+      if (typeof entry === "string") {
+        // Inline prompt: trim and append suffix
+        resolved[key] = entry.trim() + suffix;
+        continue;
+      }
+
+      // File-based prompt — validate shape before doing anything else.
+      if (
+        entry === null ||
+        typeof entry !== "object" ||
+        typeof entry.file !== "string"
+      ) {
+        throw new Error(
+          `Prompt entry must be a string or { file: string }: ${key}`,
+        );
+      }
+
+      const filePath = entry.file;
+
+      // Validate path before any network call.
+      validatePath(filePath);
+
+      let content = await fetchFileContent(owner, repo, filePath, octokit);
+
+      // Truncate if over the size cap.
+      if (content.length > MAX_PROMPT_SIZE) {
+        logger.warn(
+          { promptKey: key, filePath, size: content.length },
+          `Prompt file exceeds ${MAX_PROMPT_SIZE} chars, truncating`,
+        );
+        content = content.slice(0, MAX_PROMPT_SIZE);
+      }
+
+      resolved[key] = content + suffix;
+    } catch (err: unknown) {
+      logger.warn(
+        { promptKey: key, err },
+        `Failed to resolve custom prompt, using built-in default`,
+      );
+      // Skip this key — consumer falls back to the built-in default.
       continue;
     }
-
-    // File-based prompt
-    const filePath = entry.file;
-
-    // Validate path before any network call
-    validatePath(filePath);
-
-    let content: string;
-    try {
-      content = await fetchFileContent(owner, repo, filePath, octokit);
-    } catch (err: unknown) {
-      const error = err as OctokitError;
-      if (error.status === 404) {
-        logger.warn(
-          { promptKey: key, filePath },
-          `Prompt file not found, using built-in default`,
-        );
-        continue; // Skip this key — falls back to built-in default
-      }
-      throw err;
-    }
-
-    // Truncate if over 75KB
-    if (content.length > MAX_PROMPT_SIZE) {
-      logger.warn(
-        { promptKey: key, filePath, size: content.length },
-        `Prompt file exceeds ${MAX_PROMPT_SIZE} bytes, truncating`,
-      );
-      content = content.slice(0, MAX_PROMPT_SIZE);
-    }
-
-    resolved[key] = content + suffix;
   }
 
   return Object.keys(resolved).length > 0 ? resolved : undefined;
