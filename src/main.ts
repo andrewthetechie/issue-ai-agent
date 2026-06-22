@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { ActionContext, Logger } from "./types.js";
 import { runPipeline } from "./pipeline.js";
 import { handleComment } from "./comment-handler.js";
+import { runBatchPipeline } from "./batch.js";
 import { normalizeServerUrl } from "./utils.js";
 
 function formatMessage(msgOrObj: unknown, msg?: string): string {
@@ -88,7 +89,7 @@ export async function main(): Promise<void> {
     octokit,
     logger: createActionLogger(),
     configPath,
-    eventName: ctx.eventName as "issues" | "issue_comment",
+    eventName: ctx.eventName as ActionContext["eventName"],
     payload: ctx.payload as ActionContext["payload"],
   };
 
@@ -106,6 +107,10 @@ export async function main(): Promise<void> {
       }
     } else if (actx.eventName === "issue_comment") {
       await handleComment(actx);
+    } else if (actx.eventName === "schedule" || actx.eventName === "workflow_dispatch") {
+      const result = await runBatchPipeline(actx, normalizedServerUrl, token);
+      core.setOutput("issues-processed", String(result.issuesProcessed));
+      core.setOutput("issues-failed", String(result.issuesFailed));
     } else {
       core.warning(`Unsupported event: ${actx.eventName}`);
     }

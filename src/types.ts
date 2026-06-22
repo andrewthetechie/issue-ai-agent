@@ -110,7 +110,7 @@ export interface ActionContext {
   octokit: any;
   logger: Logger;
   configPath?: string;
-  eventName: "issues" | "issue_comment";
+  eventName: "issues" | "issue_comment" | "schedule" | "workflow_dispatch";
   payload: {
     action: string;
     issue: {
