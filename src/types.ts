@@ -88,6 +88,11 @@ export interface PipelineError {
   cause?: Error;
 }
 
+export interface BatchResult {
+  issuesProcessed: number;
+  issuesFailed: number;
+}
+
 export interface Logger {
   info(msgOrObj: unknown, msg?: string): void;
   warn(msgOrObj: unknown, msg?: string): void;
