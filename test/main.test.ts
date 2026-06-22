@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { main } from "../src/main.js";
+import * as batch from "../src/batch.js";
 
 vi.mock("@actions/core", async () => {
   const actual = await vi.importActual<typeof core>("@actions/core");
@@ -144,6 +145,10 @@ vi.mock("../src/forgejo/search.js", () => ({
   searchSimilarIssues: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("../src/batch.js", () => ({
+  runBatchPipeline: vi.fn().mockResolvedValue({ issuesProcessed: 3, issuesFailed: 1 }),
+}));
+
 describe("main", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -264,6 +269,28 @@ describe("main", () => {
 
       expect(core.setFailed).not.toHaveBeenCalled();
       expect(core.warning).toHaveBeenCalledWith("Unsupported event: push");
+    });
+
+    it("routes schedule to runBatchPipeline and sets batch outputs", async () => {
+      (mockContext.eventName as string) = "schedule";
+      mockContext.payload = {};
+
+      await main();
+
+      expect(vi.mocked(batch.runBatchPipeline)).toHaveBeenCalledTimes(1);
+      expect(core.setOutput).toHaveBeenCalledWith("issues-processed", "3");
+      expect(core.setOutput).toHaveBeenCalledWith("issues-failed", "1");
+    });
+
+    it("routes workflow_dispatch to runBatchPipeline and sets batch outputs", async () => {
+      (mockContext.eventName as string) = "workflow_dispatch";
+      mockContext.payload = {};
+
+      await main();
+
+      expect(vi.mocked(batch.runBatchPipeline)).toHaveBeenCalledTimes(1);
+      expect(core.setOutput).toHaveBeenCalledWith("issues-processed", "3");
+      expect(core.setOutput).toHaveBeenCalledWith("issues-failed", "1");
     });
 
     it("passes forgejo-server-url input to Octokit baseUrl", async () => {
