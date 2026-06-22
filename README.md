@@ -197,6 +197,8 @@ prompts:
 | `prompts.reply` | *(built-in default)* | Custom system prompt for AI-drafted replies. Same inline-or-file format |
 | `prompts.duplicate` | *(built-in default)* | Custom system prompt for duplicate detection. Same inline-or-file format |
 | `prompts.commentReply` | *(built-in default)* | Custom system prompt for follow-up comment replies. Same inline-or-file format. Also accepts `comment_reply` (snake_case) as an alias |
+| `batch.triage_label` | `"triage"` | Label used to find issues for batch processing |
+| `batch.batch_limit` | `5` | Maximum issues processed per batch run |
 
 ### Priority Label Mapping
 
