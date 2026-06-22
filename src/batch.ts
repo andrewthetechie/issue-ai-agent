@@ -10,7 +10,7 @@ import { fetchIssuesByLabel } from "./forgejo/issues.js";
 import { removeLabelFromIssue } from "./forgejo/labels.js";
 import { searchSimilarIssues } from "./forgejo/search.js";
 import { detectDuplicates } from "./duplicate.js";
-import { postDuplicateComment } from "./forgejo/comments.js";
+import { postDuplicateComment, postExcludeRemovalComment } from "./forgejo/comments.js";
 
 const ZERO_RESULT: BatchResult = { issuesProcessed: 0, issuesFailed: 0 };
 
@@ -71,9 +71,39 @@ export async function runBatchPipeline(
   let issuesFailed = 0;
 
   for (const issue of issues) {
-    // Exclude check — bypass entirely, do not count
+    // Exclude check — drain: remove triage label + comment, do not count
     if (shouldExclude({ user: issue.user, labels: issue.labels }, config)) {
-      log.info({ issueNumber: issue.number }, "Issue excluded, bypassing");
+      const reason: "user" | "label" =
+        issue.user && config.exclude.users.includes(issue.user.login) ? "user" : "label";
+
+      log.info({ issueNumber: issue.number, reason }, "Issue excluded, draining");
+
+      try {
+        const triageLabel = issue.labels.find(
+          (l) => l.name === config.batch.triageLabel,
+        );
+        if (triageLabel) {
+          await removeLabelFromIssue(
+            serverUrl,
+            actx.owner,
+            actx.repo,
+            issue.number,
+            triageLabel.id,
+            token,
+          );
+        }
+        await postExcludeRemovalComment(
+          actx.octokit,
+          actx.owner,
+          actx.repo,
+          issue.number,
+          config.batch.triageLabel,
+          reason,
+        );
+      } catch (error) {
+        log.warn({ err: error, issueNumber: issue.number }, "Exclude-drain failed — continuing");
+      }
+
       continue;
     }
 
