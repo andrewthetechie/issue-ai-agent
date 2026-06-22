@@ -59,6 +59,7 @@ vi.mock("../src/duplicate.js", () => ({
 
 vi.mock("../src/forgejo/comments.js", () => ({
   postDuplicateComment: vi.fn().mockResolvedValue(undefined),
+  postExcludeRemovalComment: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -813,8 +814,135 @@ describe("runBatchPipeline", () => {
     expect(searchSimilarIssues).not.toHaveBeenCalled();
     const { detectDuplicates } = await import("../src/duplicate.js");
     expect(detectDuplicates).not.toHaveBeenCalled();
-    const { postDuplicateComment } = await import("../src/forgejo/comments.js");
+   const { postDuplicateComment } = await import("../src/forgejo/comments.js");
     expect(postDuplicateComment).not.toHaveBeenCalled();
   });
 
- });
+  // ── Excluded-by-user → drain: remove label + comment with reason="user" ─
+
+  it("excluded-by-user issue gets label removed and comment posted with reason='user'", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          category: "bug",
+          priority: "high",
+          confidence: 0.9,
+          summary: "Bug",
+          suggestedLabels: ["bug"],
+          reasoning: "Bug",
+        }),
+      }),
+    } as any);
+
+    const included = makeMockIssue({ number: 1 });
+    const excluded = makeMockIssue({
+      number: 2,
+      user: { login: "dependabot[bot]" },
+    });
+    mockFetchIssues([included, excluded]);
+
+    const actx = createMockActionContext();
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    // Only the included issue is processed
+    expect(result).toEqual({ issuesProcessed: 1, issuesFailed: 0 });
+    // No classify/label for excluded issue
+    expect(actx.octokit.rest.issues.addLabels).toHaveBeenCalledTimes(1);
+    // Label removal + comment for excluded issue
+    expect(global.fetch).toHaveBeenCalledTimes(3); // 1 issues list + 1 remove label (included) + 1 remove label (excluded)
+    const { postExcludeRemovalComment } = await import("../src/forgejo/comments.js");
+    expect(postExcludeRemovalComment).toHaveBeenCalledTimes(1);
+    expect(postExcludeRemovalComment).toHaveBeenCalledWith(
+      actx.octokit,
+      "owner",
+      "repo",
+      2,
+      "triage",
+      "user",
+    );
+  });
+
+  // ── Excluded-by-label → drain with reason="label" ──────────────────────
+
+  it("excluded-by-label issue gets comment posted with reason='label'", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          category: "bug",
+          priority: "high",
+          confidence: 0.9,
+          summary: "Bug",
+          suggestedLabels: ["bug"],
+          reasoning: "Bug",
+        }),
+      }),
+    } as any);
+
+    const excluded = makeMockIssue({
+      number: 1,
+      labels: [{ name: "triage", id: 100 }, { name: "wontfix" }],
+    });
+    mockFetchIssues([excluded]);
+
+    const actx = createMockActionContext();
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    // Excluded issue is not counted
+    expect(result).toEqual({ issuesProcessed: 0, issuesFailed: 0 });
+    // No classify/label for excluded issue
+    expect(actx.octokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    const { postExcludeRemovalComment } = await import("../src/forgejo/comments.js");
+    expect(postExcludeRemovalComment).toHaveBeenCalledTimes(1);
+    expect(postExcludeRemovalComment).toHaveBeenCalledWith(
+      actx.octokit,
+      "owner",
+      "repo",
+      1,
+      "triage",
+      "label",
+    );
+  });
+
+  // ── Excluded issue label removal failure → swallowed ───────────────────
+
+  it("exclude-drain label removal failure is swallowed, run continues", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          category: "bug",
+          priority: "high",
+          confidence: 0.9,
+          summary: "Bug",
+          suggestedLabels: ["bug"],
+          reasoning: "Bug",
+        }),
+      }),
+    } as any);
+
+    // Excluded issue with failed label removal
+    const excluded = makeMockIssue({
+      number: 1,
+      user: { login: "dependabot[bot]" },
+    });
+    // removeSucceeds = false
+    mockFetchIssues([excluded], false);
+
+    const actx = createMockActionContext();
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    // Excluded issue is not counted even on failure
+    expect(result).toEqual({ issuesProcessed: 0, issuesFailed: 0 });
+    // Warning logged
+    expect(actx.logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ issueNumber: 1 }),
+      expect.stringContaining("Exclude-drain failed"),
+    );
+    // Comment not posted because removal threw inside the shared try/catch
+    const { postExcludeRemovalComment } = await import("../src/forgejo/comments.js");
+    expect(postExcludeRemovalComment).not.toHaveBeenCalled();
+  });
+
+  });
