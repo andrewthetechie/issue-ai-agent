@@ -31,6 +31,10 @@ export const DEFAULT_CONFIG: RepoConfig = {
     labels: ["wontfix", "skip-ai"],
     users: ["dependabot[bot]"],
   },
+  batch: {
+    triageLabel: "triage",
+    batchLimit: 5,
+  },
   llm: {
     provider: "anthropic" as const,
     model: "claude-haiku-4-5-20251001",
