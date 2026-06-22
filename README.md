@@ -45,6 +45,10 @@ on:
     types: [opened]
   issue_comment:
     types: [created]
+  schedule:
+    # Run batch triage every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   triage:
@@ -197,8 +201,28 @@ prompts:
 | `prompts.reply` | *(built-in default)* | Custom system prompt for AI-drafted replies. Same inline-or-file format |
 | `prompts.duplicate` | *(built-in default)* | Custom system prompt for duplicate detection. Same inline-or-file format |
 | `prompts.commentReply` | *(built-in default)* | Custom system prompt for follow-up comment replies. Same inline-or-file format. Also accepts `comment_reply` (snake_case) as an alias |
-| `batch.triage_label` | `"triage"` | Label used to find issues for batch processing |
-| `batch.batch_limit` | `5` | Maximum issues processed per batch run |
+| `batch.triage_label` | `"triage"` | Label used to find issues for batch processing. Issues carrying this label are processed oldest-first in a single run. The label is removed on success and retained on failure so the issue can be retried. |
+| `batch.batch_limit` | `5` | Maximum number of issues to process per batch run. Useful for controlling cost and rate limits. |
+
+### Batch Triage
+
+When issues are labelled with the batch triage label (default `triage`), the action processes them in **batch mode** instead of the per-issue flow. This is useful for catching up on a backlog of untriaged issues.
+
+**How batch triage works:**
+
+- **Triggered by:** `schedule` (cron) or `workflow_dispatch` events, or any event where issues with the triage label are found.
+- **Oldest-first:** Issues are processed in chronological order (oldest first).
+- **Sequential:** Issues are processed one at a time, up to `batch.batch_limit`.
+- **Triage label removal:** On success, the triage label is removed from the issue. On failure, the label is retained so the issue can be retried on the next run.
+- **No generic acknowledgment:** The batch mode does not post a generic acknowledgment comment on every issue. Only issues that trigger a reply (e.g. bug classification) or a duplicate detection find a match will receive a comment.
+- **Duplicate comments:** When a duplicate is found, a comment linking the duplicate is posted — this may appear as a "duplicate" comment even in batch mode.
+
+**Batch outputs:**
+
+| Output | Description |
+|--------|-------------|
+| `issues-processed` | Number of issues successfully processed in this batch run |
+| `issues-failed` | Number of issues that failed during batch processing |
 
 ### Priority Label Mapping
 
@@ -289,6 +313,8 @@ At least one API key is required. If neither is set, the bot runs in **dev mode*
 | `priority` | Classified issue priority |
 | `labels-applied` | Comma-separated list of applied labels |
 | `reply-posted` | Whether a reply comment was posted |
+| `issues-processed` | Number of issues successfully processed in a batch run |
+| `issues-failed` | Number of issues that failed during batch processing |
 
 ## Development
 
