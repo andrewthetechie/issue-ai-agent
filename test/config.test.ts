@@ -14,6 +14,12 @@ describe("DEFAULT_CONFIG", () => {
     expect(DEFAULT_CONFIG.llm.model).toContain("claude-haiku");
   });
 
+  it("has default batch config", () => {
+    expect(DEFAULT_CONFIG.batch).toBeDefined();
+    expect(DEFAULT_CONFIG.batch.triageLabel).toBe("triage");
+    expect(DEFAULT_CONFIG.batch.batchLimit).toBe(5);
+  });
+
   it("maps all issue categories", () => {
     const categories = ["bug", "feature", "question", "docs", "duplicate", "invalid", "security"];
     for (const cat of categories) {
@@ -424,5 +430,120 @@ describe("loadConfig with create_labels", () => {
     );
 
     expect(config.createLabels).toBe(false);
+  });
+});
+
+describe("loadConfig with batch", () => {
+  let mockOctokit: any;
+  let mockLogger: Logger;
+
+  beforeEach(() => {
+    mockLogger = {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: () => mockLogger,
+    };
+    mockOctokit = {
+      rest: {
+        repos: {
+          getContent: vi.fn(),
+        },
+      },
+    };
+  });
+
+  it("returns default batch values when batch block is omitted", async () => {
+    mockOctokit.rest.repos.getContent.mockResolvedValue({
+      data: {
+        content: Buffer.from("enabled: true\n").toString("base64"),
+      },
+    });
+
+    const config = await loadConfig(
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+      ".forgejo/issue-ai.yml",
+    );
+
+    expect(config.batch).toBeDefined();
+    expect(config.batch.triageLabel).toBe("triage");
+    expect(config.batch.batchLimit).toBe(5);
+  });
+
+  it("returns full override when triage_label and batch_limit are provided", async () => {
+    mockOctokit.rest.repos.getContent.mockResolvedValue({
+      data: {
+        content: Buffer.from(
+          [
+            "enabled: true",
+            "batch:",
+            "  triage_label: \"needs-sweep\"",
+            "  batch_limit: 10",
+          ].join("\n"),
+        ).toString("base64"),
+      },
+    });
+
+    const config = await loadConfig(
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+      ".forgejo/issue-ai.yml",
+    );
+
+    expect(config.batch).toBeDefined();
+    expect(config.batch.triageLabel).toBe("needs-sweep");
+    expect(config.batch.batchLimit).toBe(10);
+  });
+
+  it("partial batch config falls back per-field", async () => {
+    mockOctokit.rest.repos.getContent.mockResolvedValue({
+      data: {
+        content: Buffer.from(
+          [
+            "enabled: true",
+            "batch:",
+            "  batch_limit: 3",
+          ].join("\n"),
+        ).toString("base64"),
+      },
+    });
+
+    const config = await loadConfig(
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+      ".forgejo/issue-ai.yml",
+    );
+
+    expect(config.batch).toBeDefined();
+    expect(config.batch.triageLabel).toBe("triage");
+    expect(config.batch.batchLimit).toBe(3);
+  });
+
+  it("batch is always present after loadConfig", async () => {
+    mockOctokit.rest.repos.getContent.mockResolvedValue({
+      data: {
+        content: Buffer.from("enabled: true\n").toString("base64"),
+      },
+    });
+
+    const config = await loadConfig(
+      "owner",
+      "repo",
+      mockOctokit,
+      mockLogger,
+      ".forgejo/issue-ai.yml",
+    );
+
+    expect(config.batch).not.toBeUndefined();
+    expect(typeof config.batch.triageLabel).toBe("string");
+    expect(typeof config.batch.batchLimit).toBe("number");
   });
 });
