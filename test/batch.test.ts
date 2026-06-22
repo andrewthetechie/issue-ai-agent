@@ -586,4 +586,140 @@ describe("runBatchPipeline", () => {
     // LLM should not have been called since classify is disabled
     expect(vi.mocked(createProvider).mock.results[0].value.complete).not.toHaveBeenCalled();
   });
+
+  // ── Duplicate search in batch mode ─────────────────────────────────────
+
+  it("searches for duplicates when duplicateSearch is enabled", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn()
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            category: "bug",
+            priority: "high",
+            confidence: 0.9,
+            summary: "Bug",
+            suggestedLabels: ["bug"],
+            reasoning: "Bug",
+          }),
+        })
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            duplicates: [5],
+            reasoning: "Duplicate found",
+          }),
+        }),
+    } as any);
+
+    const issue = makeMockIssue({ number: 1 });
+    mockFetchIssues([issue]);
+
+    const actx = createMockActionContext();
+    await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    // searchSimilarIssues should have been called (via global fetch mock)
+    // The mock in search.js returns [] by default, so no duplicates found
+    expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("posts duplicate comment when duplicates are found", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    const { searchSimilarIssues } = await import("../src/forgejo/search.js");
+    vi.mocked(searchSimilarIssues).mockResolvedValueOnce([
+      { number: 5, title: "Similar issue", url: "https://example.com/5" },
+    ]);
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn()
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            category: "bug",
+            priority: "high",
+            confidence: 0.9,
+            summary: "Bug",
+            suggestedLabels: ["bug"],
+            reasoning: "Bug",
+          }),
+        })
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            duplicates: [5],
+            reasoning: "Duplicate found",
+          }),
+        }),
+    } as any);
+
+    const issue = makeMockIssue({ number: 1 });
+    mockFetchIssues([issue]);
+
+    const actx = createMockActionContext();
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    expect(actx.octokit.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ issuesProcessed: 1, issuesFailed: 0 });
+  });
+
+  it("duplicate search failure does not block label removal", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    const { searchSimilarIssues } = await import("../src/forgejo/search.js");
+    vi.mocked(searchSimilarIssues).mockRejectedValueOnce(new Error("Search API error"));
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn()
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            category: "bug",
+            priority: "high",
+            confidence: 0.9,
+            summary: "Bug",
+            suggestedLabels: ["bug"],
+            reasoning: "Bug",
+          }),
+        }),
+    } as any);
+
+    const issue = makeMockIssue({ number: 1 });
+    mockFetchIssues([issue]);
+
+    const actx = createMockActionContext();
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    expect(result).toEqual({ issuesProcessed: 1, issuesFailed: 0 });
+  });
+
+  it("duplicate comment post failure does not block label removal", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    const { searchSimilarIssues } = await import("../src/forgejo/search.js");
+    vi.mocked(searchSimilarIssues).mockResolvedValueOnce([
+      { number: 5, title: "Similar issue", url: "https://example.com/5" },
+    ]);
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn()
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            category: "bug",
+            priority: "high",
+            confidence: 0.9,
+            summary: "Bug",
+            suggestedLabels: ["bug"],
+            reasoning: "Bug",
+          }),
+        })
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            duplicates: [5],
+            reasoning: "Duplicate found",
+          }),
+        }),
+    } as any);
+
+    const issue = makeMockIssue({ number: 1 });
+    mockFetchIssues([issue]);
+
+    const actx = createMockActionContext();
+    // Make createComment throw
+    actx.octokit.rest.issues.createComment.mockRejectedValueOnce(new Error("Comment API error"));
+
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    expect(result).toEqual({ issuesProcessed: 1, issuesFailed: 0 });
+  });
 });

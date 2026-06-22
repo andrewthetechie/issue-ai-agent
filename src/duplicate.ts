@@ -3,6 +3,41 @@ import type { Issue, RelatedIssue, RepoConfig } from "./types.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { DUPLICATE_SYSTEM_PROMPT, buildDuplicateUserMessage } from "./prompts/duplicate.js";
 
+/**
+ * Posts a static duplicate-comment in batch mode.
+ *
+ * This is a templated comment (no LLM call) that lists detected duplicate
+ * issue numbers/links. It is used only in batch mode because the event-driven
+ * pipeline embeds duplicates into the LLM reply instead.
+ *
+ * Failure to post this comment does NOT block triage label removal.
+ */
+export async function postDuplicateComment(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  octokit: any,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  relatedIssues: RelatedIssue[],
+): Promise<void> {
+  const lines = [
+    ":robot: **Duplicate issue(s) detected**",
+    "",
+    "The following issues appear to be duplicates of this one:",
+    "",
+    ...relatedIssues.map((ri) => `- #${ri.number} — [${ri.title}](${ri.url})`),
+    "",
+    "-- Issue AI Agent",
+  ].join("\n");
+
+  await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    body: lines,
+  });
+}
+
 export interface DuplicateResponse {
   duplicates: number[];
   reasoning: string;
