@@ -40,11 +40,6 @@ outputs:
     description: "Comma-separated list of applied labels"
   reply-posted:
     description: "Whether a reply comment was posted"
-  issues-processed:
-    description: "Number of issues successfully triaged in batch mode"
-  issues-failed:
-    description: "Number of issues that failed triage in batch mode"
-
-runs:
+ runs:
   using: "node24"
   main: "dist/index.js"

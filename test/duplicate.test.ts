@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { parseDuplicateResponse, postDuplicateComment } from "../src/duplicate.js";
+import { parseDuplicateResponse } from "../src/duplicate.js";
 
 describe("parseDuplicateResponse", () => {
   it("parses valid response with duplicates", () => {
@@ -64,49 +64,5 @@ describe("parseDuplicateResponse", () => {
 
     const result = parseDuplicateResponse(input);
     expect(result.reasoning.length).toBeLessThanOrEqual(300);
-  });
-});
-
-describe("postDuplicateComment", () => {
-  it("posts a comment listing duplicate issues", async () => {
-    const createComment = vi.fn().mockResolvedValue({});
-    const octokit = { rest: { issues: { createComment } } };
-
-    await postDuplicateComment(
-      octokit,
-      "owner",
-      "repo",
-      42,
-      [
-        { number: 10, title: "Login crash", url: "https://example.com/10" },
-        { number: 20, title: "Auth failure", url: "https://example.com/20" },
-      ],
-    );
-
-    expect(createComment).toHaveBeenCalledTimes(1);
-    expect(createComment).toHaveBeenCalledWith({
-      owner: "owner",
-      repo: "repo",
-      issue_number: 42,
-      body: expect.stringContaining("#10"),
-    });
-    expect(createComment).toHaveBeenCalledWith({
-      owner: "owner",
-      repo: "repo",
-      issue_number: 42,
-      body: expect.stringContaining("#20"),
-    });
-  });
-
-  it("posts a comment with no duplicates listed", async () => {
-    const createComment = vi.fn().mockResolvedValue({});
-    const octokit = { rest: { issues: { createComment } } };
-
-    await postDuplicateComment(octokit, "owner", "repo", 1, []);
-
-    expect(createComment).toHaveBeenCalledTimes(1);
-    const callArgs = vi.mocked(createComment).mock.calls[0][0] as { body: string };
-    expect(callArgs.body).toContain("Duplicate issue(s) detected");
-    expect(callArgs.body).toContain("-- Issue AI Agent");
   });
 });

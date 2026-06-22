@@ -8,8 +8,6 @@ import { resolveLabels, applyLabels, ensureLabelsExist } from "./forgejo/labels.
 import { shouldExclude } from "./exclude.js";
 import { fetchIssuesByLabel } from "./forgejo/issues.js";
 import { removeLabelFromIssue } from "./forgejo/labels.js";
-import { searchSimilarIssues } from "./forgejo/search.js";
-import { detectDuplicates, postDuplicateComment } from "./duplicate.js";
 
 const ZERO_RESULT: BatchResult = { issuesProcessed: 0, issuesFailed: 0 };
 
@@ -113,30 +111,6 @@ export async function runBatchPipeline(
       log.error({ err: error, issueNumber: issue.number }, "Label application failed");
       issuesFailed++;
       continue;
-    }
-
-    // Duplicate search (only when enabled and LLM client exists)
-    let relatedIssues: { number: number; title: string; url: string }[] = [];
-    if (config.features.duplicateSearch && llmClient) {
-      try {
-        const candidates = await searchSimilarIssues(
-          actx.owner, actx.repo, sanitizedTitle, issue.number, serverUrl, token,
-        );
-        if (candidates.length > 0) {
-          log.info({ candidateCount: candidates.length }, "Found similar issues, checking for duplicates");
-          relatedIssues = await detectDuplicates(
-            issue, candidates, llmClient, config, log,
-          );
-          if (relatedIssues.length > 0) {
-            await postDuplicateComment(
-              actx.octokit, actx.owner, actx.repo, issue.number, relatedIssues,
-            );
-            log.info({ duplicateCount: relatedIssues.length }, "Duplicate comment posted");
-          }
-        }
-      } catch (error) {
-        log.warn({ err: error, issueNumber: issue.number }, "Duplicate detection failed — continuing");
-      }
     }
 
     // Remove triage label

@@ -45,10 +45,6 @@ on:
     types: [opened]
   issue_comment:
     types: [created]
-  schedule:
-    # Run every 6 hours to sweep for untriaged issues
-    - cron: "0 */6 * * *"
-  workflow_dispatch: # Manual trigger
 
 jobs:
   triage:
@@ -256,36 +252,6 @@ priority_label_mapping: {}
 
 > **Note:** Unknown keys (e.g. `urgent`) in `priority_label_mapping` or `label_mapping` trigger a warning log but do not abort the workflow. Only the well-known keys (`critical`, `high`, `medium`, `low` for priority; `bug`, `feature`, `question`, `docs`, `duplicate`, `invalid`, `security` for labels) are recognized.
 
-### Batch Triage Mode
-
-When triggered by `schedule` or `workflow_dispatch`, the agent enters **batch triage mode**. In this mode it:
-
-1. Fetches open issues carrying the configured triage label (default: `triage`), oldest first.
-2. Processes up to a configurable limit per run (default: `5`).
-3. Classifies, labels, searches for duplicates, and removes the triage label from each issue.
-4. Reports `issues-processed` and `issues-failed` as action outputs.
-
-Configure batch behavior in `.forgejo/issue-ai.yml`:
-
-```yaml
-batch:
-  triage_label: triage    # Label used to find issues for batch processing
-  batch_limit: 5          # Maximum issues processed per run
-```
-
-> **Note:** The triage label (default: `triage`) is distinct from the repo's existing `needs-triage` label. If you set `batch.triage_label` to `needs-triage`, the agent's own fallback could put an issue back into the batch queue, causing a re-enqueue loop. The default `triage` was chosen to avoid this collision.
-
-#### Batch Mode Outputs
-
-When running in batch mode, the action sets two additional outputs:
-
-| Output | Description |
-|--------|-------------|
-| `issues-processed` | Number of issues successfully triaged (classify + label + triage label removed) |
-| `issues-failed` | Number of issues that errored during triage (classify or label failure) |
-
-Excluded issues (by user or label) are silently bypassed and do not count against either total.
-
 ### Create Labels
 
 By default, the bot only applies labels that already exist in your repository. If a label referenced by your `label_mapping` or `priority_label_mapping` doesn't exist, the application silently skips it.
@@ -323,8 +289,6 @@ At least one API key is required. If neither is set, the bot runs in **dev mode*
 | `priority` | Classified issue priority |
 | `labels-applied` | Comma-separated list of applied labels |
 | `reply-posted` | Whether a reply comment was posted |
-| `issues-processed` | Number of issues successfully triaged in batch mode |
-| `issues-failed` | Number of issues that failed triage in batch mode |
 
 ## Development
 

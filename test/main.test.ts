@@ -144,10 +144,6 @@ vi.mock("../src/forgejo/search.js", () => ({
   searchSimilarIssues: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("../src/batch.js", () => ({
-  runBatchPipeline: vi.fn().mockResolvedValue({ issuesProcessed: 3, issuesFailed: 1 }),
-}));
-
 describe("main", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -268,32 +264,6 @@ describe("main", () => {
 
       expect(core.setFailed).not.toHaveBeenCalled();
       expect(core.warning).toHaveBeenCalledWith("Unsupported event: push");
-    });
-
-    it("handles schedule event via batch pipeline", async () => {
-      const { runBatchPipeline } = await import("../src/batch.js");
-
-      (mockContext.eventName as string) = "schedule";
-
-      await main();
-
-      expect(core.setFailed).not.toHaveBeenCalled();
-      expect(runBatchPipeline).toHaveBeenCalled();
-      expect(core.setOutput).toHaveBeenCalledWith("issues-processed", "3");
-      expect(core.setOutput).toHaveBeenCalledWith("issues-failed", "1");
-    });
-
-    it("handles workflow_dispatch event via batch pipeline", async () => {
-      const { runBatchPipeline } = await import("../src/batch.js");
-
-      (mockContext.eventName as string) = "workflow_dispatch";
-
-      await main();
-
-      expect(core.setFailed).not.toHaveBeenCalled();
-      expect(runBatchPipeline).toHaveBeenCalled();
-      expect(core.setOutput).toHaveBeenCalledWith("issues-processed", "3");
-      expect(core.setOutput).toHaveBeenCalledWith("issues-failed", "1");
     });
 
     it("passes forgejo-server-url input to Octokit baseUrl", async () => {
