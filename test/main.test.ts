@@ -278,8 +278,17 @@ describe("main", () => {
       await main();
 
       expect(vi.mocked(batch.runBatchPipeline)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(batch.runBatchPipeline)).toHaveBeenCalledWith(
+        expect.objectContaining({ owner: "test-owner", repo: "test-repo" }),
+        "https://github.com",
+        "test-token",
+      );
       expect(core.setOutput).toHaveBeenCalledWith("issues-processed", "3");
       expect(core.setOutput).toHaveBeenCalledWith("issues-failed", "1");
+      expect(core.setOutput).not.toHaveBeenCalledWith("category", expect.any(String));
+      expect(core.setOutput).not.toHaveBeenCalledWith("priority", expect.any(String));
+      expect(core.setOutput).not.toHaveBeenCalledWith("labels-applied", expect.any(String));
+      expect(core.setOutput).not.toHaveBeenCalledWith("reply-posted", expect.any(String));
     });
 
     it("routes workflow_dispatch to runBatchPipeline and sets batch outputs", async () => {
@@ -289,8 +298,17 @@ describe("main", () => {
       await main();
 
       expect(vi.mocked(batch.runBatchPipeline)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(batch.runBatchPipeline)).toHaveBeenCalledWith(
+        expect.objectContaining({ owner: "test-owner", repo: "test-repo" }),
+        "https://github.com",
+        "test-token",
+      );
       expect(core.setOutput).toHaveBeenCalledWith("issues-processed", "3");
       expect(core.setOutput).toHaveBeenCalledWith("issues-failed", "1");
+      expect(core.setOutput).not.toHaveBeenCalledWith("category", expect.any(String));
+      expect(core.setOutput).not.toHaveBeenCalledWith("priority", expect.any(String));
+      expect(core.setOutput).not.toHaveBeenCalledWith("labels-applied", expect.any(String));
+      expect(core.setOutput).not.toHaveBeenCalledWith("reply-posted", expect.any(String));
     });
 
     it("passes forgejo-server-url input to Octokit baseUrl", async () => {
