@@ -98,6 +98,7 @@ export async function runBatchPipeline(
         summary: "",
         suggestedLabels: [],
         reasoning: "Classification disabled",
+        relatedIssues: [],
       };
     }
 
