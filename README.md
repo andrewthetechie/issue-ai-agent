@@ -1,11 +1,8 @@
 <div align="center">
 
-# ⚡ Issue AI Agent
+# Forgejo Issue AI Agent
 
 **AI-powered Forgejo Issue triage — classify, label, and reply automatically**
-
-[![Forgejo Action](https://img.shields.io/github/actions/workflow/status/andrewthetechie/issue-ai-agent/ci.yml?branch=main&label=CI&logo=github-actions&logoColor=white)](https://github.com/andrewthetechie/issue-ai-agent/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
 
