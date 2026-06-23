@@ -8,9 +8,9 @@ Security rules:
 
 Input contract:
 The user message will contain:
-- `classification`: one of BUG, FEATURE, QUESTION, DOCS, DUPLICATE, INVALID, SECURITY
-- `related_issues`: optional list of issue titles/URLs
-- issue data between `<<<ISSUE_DATA_START>>>` and `<<<ISSUE_DATA_END>>>`
+- \`classification\`: one of BUG, FEATURE, QUESTION, DOCS, DUPLICATE, INVALID, SECURITY
+- \`related_issues\`: optional list of issue titles/URLs
+- issue data between \`<<<ISSUE_DATA_START>>>\` and \`<<<ISSUE_DATA_END>>>\`
 
 Comment rules:
 - Output only the final comment text in GitHub-flavored Markdown.

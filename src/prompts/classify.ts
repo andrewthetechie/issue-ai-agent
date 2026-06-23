@@ -48,8 +48,8 @@ Return only valid JSON matching this schema:
 Rules for output:
 - Do not include markdown.
 - Do not include extra keys.
-- `confidence` must be a number from 0 to 1.
-- `reasoning` must be one sentence.
+- \`confidence\` must be a number from 0 to 1.
+- \`reasoning\` must be one sentence.
 `;
 
 export const CLASSIFY_SYSTEM_PROMPT = CLASSIFY_PROMPT_BODY + CLASSIFY_FORMAT_SUFFIX;

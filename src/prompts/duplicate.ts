@@ -28,14 +28,14 @@ Return only valid JSON matching this shape:
 }
 
 Rules:
-- `duplicates` must contain candidate issue numbers only.
+- \`duplicates\` must contain candidate issue numbers only.
 - If none are true duplicates, return:
   {
     "duplicates": [],
     "reasoning": "No duplicates found among candidates."
   }
 - Do not include markdown, commentary, confidence scores, or extra fields.
-- Keep `reasoning` to one sentence.`;
+- Keep \`reasoning\` to one sentence.`;
 
 export const DUPLICATE_SYSTEM_PROMPT = DUPLICATE_PROMPT_BODY + DUPLICATE_FORMAT_SUFFIX;
 
