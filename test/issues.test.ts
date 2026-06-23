@@ -188,6 +188,82 @@ describe("fetchIssuesByLabel", () => {
 
     expect(results).toEqual([]);
   });
+
+  it("coerces null user to { login: '' }", async () => {
+    const mockResponse = [
+      {
+        number: 1,
+        title: "Ghost issue",
+        body: "Body",
+        html_url: "https://forgejo.example.com/myorg/myrepo/issues/1",
+        user: null,
+        labels: [{ name: "triage", id: 100 }],
+        created_at: "2024-01-01T00:00:00Z",
+      },
+    ];
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    const results = await fetchIssuesByLabel(serverUrl, owner, repo, triageLabel, batchLimit, token);
+
+    expect(results.length).toBe(1);
+    expect(results[0].user.login).toBe("");
+  });
+
+  it("coerces null labels to []", async () => {
+    const mockResponse = [
+      {
+        number: 1,
+        title: "Issue without labels",
+        body: "Body",
+        html_url: "https://forgejo.example.com/myorg/myrepo/issues/1",
+        user: { login: "alice" },
+        labels: null,
+        created_at: "2024-01-01T00:00:00Z",
+      },
+    ];
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    const results = await fetchIssuesByLabel(serverUrl, owner, repo, triageLabel, batchLimit, token);
+
+    expect(results.length).toBe(1);
+    expect(results[0].labels).toEqual([]);
+  });
+
+  it("handles item with both null user and null labels", async () => {
+    const mockResponse = [
+      {
+        number: 1,
+        title: "Completely malformed",
+        body: "Body",
+        html_url: "https://forgejo.example.com/myorg/myrepo/issues/1",
+        user: null,
+        labels: null,
+        created_at: "2024-01-01T00:00:00Z",
+      },
+    ];
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    const results = await fetchIssuesByLabel(serverUrl, owner, repo, triageLabel, batchLimit, token);
+
+    expect(results.length).toBe(1);
+    expect(results[0].user.login).toBe("");
+    expect(results[0].labels).toEqual([]);
+  });
 });
 
 describe("removeLabelFromIssue", () => {

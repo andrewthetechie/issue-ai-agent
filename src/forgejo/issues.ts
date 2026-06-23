@@ -29,13 +29,13 @@ export async function fetchIssuesByLabel(
 
   return items
     .slice(0, batchLimit)
-    .map((item: { number: number; title: string; body: string | null; html_url: string; user: { login: string }; labels: Array<{ name: string; id: number }>; created_at: string }) => ({
+    .map((item: { number: number; title: string; body: string | null; html_url: string; user?: { login: string } | null; labels?: Array<{ name: string; id: number }> | null; created_at: string }) => ({
       number: item.number,
       title: item.title,
       body: item.body ?? null,
       html_url: item.html_url,
-      user: { login: item.user.login },
-      labels: item.labels.map((label: { name: string; id: number }) => ({ name: label.name, id: label.id })),
+      user: { login: item.user?.login ?? "" },
+      labels: (item.labels ?? []).map((label: { name: string; id: number }) => ({ name: label.name, id: label.id })),
       created_at: item.created_at,
     }));
 }
