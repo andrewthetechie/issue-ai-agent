@@ -24,16 +24,6 @@ When someone opens an issue in your repository, Issue AI Agent:
 
 Powered by your LLM of choice.
 
-## Demo
-
-![Demo: Issue AI Agent classifying and replying to a new issue](docs/demo.gif)
-
-1. **User opens an issue** — describes a login page crash
-2. **Bot classifies** — labels it `bug` / `priority: high` in ~8 seconds
-3. **Bot replies** — asks for reproduction details
-4. **Duplicate check** — searches existing issues and links potential matches
-5. **Follow-up comments** — replies to user comments with relevant info
-
 ## Quick Start
 
 ### Step 1: Add a workflow file
