@@ -19,7 +19,7 @@ When someone opens an issue in your repository, Issue AI Agent:
 5. **Handles follow-up comments** — replies to user comments with relevant information
 6. **Batch triage** — on a schedule (or manual trigger), processes a backlog of issues labelled `triage` in oldest-first order, up to a configurable limit per run
 
-Powered by your LLM of choice.
+Powered by your LLM of choice - supports any Anthropic or OpenAPI endpoint, bring your own API Key.
 
 ## Quick Start
 
@@ -35,6 +35,7 @@ on:
     types: [opened]
   issue_comment:
     types: [created]
+  # Optional Batch mode setup
   schedule:
     # Run batch triage every 6 hours
     - cron: '0 */6 * * *'
@@ -56,13 +57,20 @@ jobs:
 
 Go to **Settings > Secrets and variables > Actions > New repository secret**:
 
+For an example if using Anthropic:
+```
 - Name: `ANTHROPIC_API_KEY`
 - Value: your Anthropic API key (get one at [console.anthropic.com](https://console.anthropic.com))
+```
 
 ### Step 3: Open an issue
 
 That's it. The bot will automatically classify, label, and reply to new issues.
 
+### Step 4: Batch Mode
+If you enabled Batch Mode, on a schedule or dispatch any issues labeled with your `triage` label will be run through the batch mode triage process.
+
+ 
 ## LLM Providers
 
 The bot supports any Anthropic or OpenAI API. Use the three inputs — `<provider>-api-key`, `llm-provider`, and `llm-base-url` — to match your setup.
