@@ -72857,6 +72857,7 @@ const DEFAULT_CONFIG = {
     batch: {
         triageLabel: "triage",
         batchLimit: 5,
+        commentOnExclude: false,
     },
     llm: {
         provider: "anthropic",
@@ -73213,6 +73214,7 @@ octokit, logger, configPath = ".forgejo/issue-ai.yml") {
         batch: {
             triageLabel: repoConfig.batch?.triage_label ?? DEFAULT_CONFIG.batch.triageLabel,
             batchLimit: repoConfig.batch?.batch_limit ?? DEFAULT_CONFIG.batch.batchLimit,
+            commentOnExclude: repoConfig.batch?.comment_on_exclude ?? DEFAULT_CONFIG.batch.commentOnExclude,
         },
         llm: {
             provider: repoConfig.llm?.provider ?? DEFAULT_CONFIG.llm.provider,
@@ -73827,8 +73829,8 @@ async function fetchIssuesByLabel(serverUrl, owner, repo, triageLabel, batchLimi
         title: item.title,
         body: item.body ?? null,
         html_url: item.html_url,
-        user: { login: item.user.login },
-        labels: item.labels.map((label) => ({ name: label.name, id: label.id })),
+        user: { login: item.user?.login ?? "" },
+        labels: (item.labels ?? []).map((label) => ({ name: label.name, id: label.id })),
         created_at: item.created_at,
     }));
 }
@@ -73952,7 +73954,7 @@ async function runBatchPipeline(actx, serverUrl, token) {
     let issuesProcessed = 0;
     let issuesFailed = 0;
     for (const issue of issues) {
-        // Exclude check — drain: remove triage label + comment, do not count
+        // Exclude check — drain: remove triage label (always), post comment (opt-in), do not count
         if (shouldExclude({ user: issue.user, labels: issue.labels }, config)) {
             const reason = issue.user && config.exclude.users.includes(issue.user.login) ? "user" : "label";
             log.info({ issueNumber: issue.number, reason }, "Issue excluded, draining");
@@ -73961,7 +73963,9 @@ async function runBatchPipeline(actx, serverUrl, token) {
                 if (triageLabel) {
                     await removeLabelFromIssue(serverUrl, actx.owner, actx.repo, issue.number, triageLabel.id, token);
                 }
-                await postExcludeRemovalComment(actx.octokit, actx.owner, actx.repo, issue.number, config.batch.triageLabel, reason);
+                if (config.batch.commentOnExclude) {
+                    await postExcludeRemovalComment(actx.octokit, actx.owner, actx.repo, issue.number, config.batch.triageLabel, reason);
+                }
             }
             catch (error) {
                 log.warn({ err: error, issueNumber: issue.number }, "Exclude-drain failed — continuing");

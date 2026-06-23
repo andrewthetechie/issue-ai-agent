@@ -59,6 +59,7 @@ export interface RepoConfig {
     batch: {
         triageLabel: string;
         batchLimit: number;
+        commentOnExclude: boolean;
     };
     llm: {
         provider: "anthropic" | "openai";
