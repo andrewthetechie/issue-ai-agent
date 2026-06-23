@@ -220,8 +220,7 @@ When issues are labelled with the batch triage label (default `triage`), the act
 - **Oldest-first:** Issues are processed in chronological order (oldest first).
 - **Sequential:** Issues are processed one at a time, up to `batch.batch_limit`.
 - **Triage label removal:** On success, the triage label is removed from the issue. On failure, the label is retained so the issue can be retried on the next run.
-- **No generic acknowledgment:** The batch mode does not post a generic acknowledgment comment on every issue. Only issues that trigger a reply (e.g. bug classification) or a duplicate detection find a match will receive a comment.
-- **Duplicate comments:** When a duplicate is found, a comment linking the duplicate is posted — this may appear as a "duplicate" comment even in batch mode.
+- **No generic acknowledgment:** Batch mode never posts classification or reply comments. A bug, feature, or any other classification alone produces no comment. The only comments batch mode posts are: (a) a duplicate comment when a duplicate issue is found, and (b) an exclude-removal comment when an excluded issue is drained — the latter only when `batch.comment_on_exclude` is set to `true` (default: `false`, so excluded issues are drained silently).
 
 **Batch outputs:**
 
