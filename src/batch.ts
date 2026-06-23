@@ -1,4 +1,4 @@
-import type { ActionContext, BatchResult, Logger, RepoConfig } from "./types.js";
+import type { ActionContext, BatchResult, IssueClassification, Logger, RepoConfig } from "./types.js";
 import { createProvider, detectProvider } from "./llm/factory.js";
 import type { ProviderName } from "./llm/factory.js";
 import { loadConfig } from "./config/loader.js";
@@ -112,7 +112,7 @@ export async function runBatchPipeline(
     const sanitizedBody = sanitizeIssueBody(issue.body, config);
 
     // Classify (only when enabled)
-    let classification: ReturnType<typeof classifyIssue> extends Promise<infer T> ? T : never;
+    let classification: IssueClassification | undefined;
     if (config.features.classify) {
       try {
         classification = await classifyIssue(
@@ -123,27 +123,18 @@ export async function runBatchPipeline(
         issuesFailed++;
         continue;
       }
-    } else {
-      classification = {
-        category: "question" as const,
-        priority: "medium" as const,
-        confidence: 0,
-        summary: "",
-        suggestedLabels: [],
-        reasoning: "Classification disabled",
-      };
-    }
 
-    // Apply labels
-    try {
-      const labels = resolveLabels(classification, config);
-      await applyLabels(
-        actx.owner, actx.repo, issue.number, labels, actx.octokit, log,
-      );
-    } catch (error) {
-      log.error({ err: error, issueNumber: issue.number }, "Label application failed");
-      issuesFailed++;
-      continue;
+      // Apply labels
+      try {
+        const labels = resolveLabels(classification, config);
+        await applyLabels(
+          actx.owner, actx.repo, issue.number, labels, actx.octokit, log,
+        );
+      } catch (error) {
+        log.error({ err: error, issueNumber: issue.number }, "Label application failed");
+        issuesFailed++;
+        continue;
+      }
     }
 
     // Duplicate detection — separate try/catch so failures don't block triage
