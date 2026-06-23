@@ -594,6 +594,8 @@ describe("runBatchPipeline", () => {
     expect(result).toEqual({ issuesProcessed: 1, issuesFailed: 0 });
     // LLM should not have been called since classify is disabled
     expect(vi.mocked(createProvider).mock.results[0].value.complete).not.toHaveBeenCalled();
+    // Labels should NOT have been applied when classify is disabled
+    expect(actx.octokit.rest.issues.addLabels).not.toHaveBeenCalled();
   });
 
   // ── Duplicate detection — comment posted when duplicates found ──────────
