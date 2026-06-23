@@ -74022,7 +74022,7 @@ async function runBatchPipeline(actx, serverUrl, token) {
             const reason = issue.user && config.exclude.users.includes(issue.user.login) ? "user" : "label";
             log.info({ issueNumber: issue.number, reason }, "Issue excluded, draining");
             try {
-                const triageLabel = issue.labels.find((l) => l.name === config.batch.triageLabel);
+                const triageLabel = issue.labels.find(l => l.name === config.batch.triageLabel);
                 if (triageLabel) {
                     await removeLabelFromIssue(serverUrl, actx.owner, actx.repo, issue.number, triageLabel.id, token);
                 }
@@ -74077,7 +74077,7 @@ async function runBatchPipeline(actx, serverUrl, token) {
             }
         }
         // Remove triage label
-        const triageLabel = issue.labels.find((l) => l.name === config.batch.triageLabel);
+        const triageLabel = issue.labels.find(l => l.name === config.batch.triageLabel);
         if (triageLabel) {
             try {
                 await removeLabelFromIssue(serverUrl, actx.owner, actx.repo, issue.number, triageLabel.id, token);

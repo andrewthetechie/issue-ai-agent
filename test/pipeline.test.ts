@@ -178,6 +178,52 @@ describe("runPipeline", () => {
     expect(result.classification).toBeNull();
   });
 
+  // Regression: shouldExclude was extracted from runPipeline into src/exclude.ts in PRD-005.
+  // These tests assert runPipeline's exclude behaviour is unchanged after the extraction.
+  describe("shouldExclude regression – post-extraction from pipeline.ts", () => {
+    it("excludes by user login and posts no labels or comments", async () => {
+      const actx = createMockActionContext({
+        payload: {
+          ...createMockActionContext().payload,
+          issue: {
+            ...createMockActionContext().payload.issue,
+            user: { login: "dependabot[bot]", type: "Bot" },
+          },
+        },
+      });
+      const result = await runPipeline(actx);
+      expect(result.classification).toBeNull();
+      expect(result.labelsApplied).toEqual([]);
+      expect(result.replyPosted).toBe(false);
+      expect(actx.octokit.rest.issues.addLabels).not.toHaveBeenCalled();
+      expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
+    it("excludes by label name and posts no labels or comments", async () => {
+      const actx = createMockActionContext({
+        payload: {
+          ...createMockActionContext().payload,
+          issue: {
+            ...createMockActionContext().payload.issue,
+            labels: [{ name: "wontfix", id: 2 }],
+          },
+        },
+      });
+      const result = await runPipeline(actx);
+      expect(result.classification).toBeNull();
+      expect(result.labelsApplied).toEqual([]);
+      expect(result.replyPosted).toBe(false);
+      expect(actx.octokit.rest.issues.addLabels).not.toHaveBeenCalled();
+      expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
+    it("does not exclude a non-excluded issue (sanity check)", async () => {
+      const actx = createMockActionContext();
+      const result = await runPipeline(actx);
+      expect(result.classification).not.toBeNull();
+    });
+  });
+
   it("runs in dev mode when no LLM API key is set", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     vi.mocked(createProvider).mockReturnValueOnce(null as any);

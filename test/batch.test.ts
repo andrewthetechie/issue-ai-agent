@@ -278,11 +278,13 @@ describe("runBatchPipeline", () => {
 
   // ── Oldest-first order ─────────────────────────────────────────────────
 
-  it("processes issues in oldest-first order", async () => {
+  it("processes issues in fetch-returned order without client-side resorting", async () => {
     const { createProvider } = await import("../src/llm/factory.js");
     vi.mocked(createProvider).mockReturnValueOnce({} as any);
 
-    // Provide issues in reverse chronological order
+    // Issues are provided in non-chronological order to confirm the pipeline does NOT
+    // re-sort them. Oldest-first ordering is enforced server-side via sort=oldest
+    // (asserted in test/issues.test.ts "issues a fetch to the correct endpoint").
     const issues = [
       makeMockIssue({ number: 3, created_at: "2026-01-03T00:00:00Z" }),
       makeMockIssue({ number: 1, created_at: "2026-01-01T00:00:00Z" }),
@@ -293,7 +295,6 @@ describe("runBatchPipeline", () => {
     const actx = createMockActionContext();
     await runBatchPipeline(actx, "https://forgejo.example.com", "token");
 
-    // Pipeline processes issues in the order returned by fetch (no client-side reordering)
     expect(processedOrder).toEqual([3, 1, 2]);
   });
 

@@ -84,9 +84,7 @@ export async function runBatchPipeline(
       log.info({ issueNumber: issue.number, reason }, "Issue excluded, draining");
 
       try {
-        const triageLabel = issue.labels.find(
-          (l: { name: string; id: number }) => l.name === config.batch.triageLabel,
-        );
+        const triageLabel = issue.labels.find(l => l.name === config.batch.triageLabel);
         if (triageLabel) {
           await removeLabelFromIssue(
             serverUrl,
@@ -167,9 +165,7 @@ export async function runBatchPipeline(
     }
 
     // Remove triage label
-    const triageLabel = issue.labels.find(
-      (l: { name: string; id: number }) => l.name === config.batch.triageLabel,
-    );
+    const triageLabel = issue.labels.find(l => l.name === config.batch.triageLabel);
     if (triageLabel) {
       try {
         await removeLabelFromIssue(
