@@ -56,14 +56,20 @@ export async function runBatchPipeline(
   }
 
   // Step 5: Fetch triage-labeled issues
-  const issues = await fetchIssuesByLabel(
-    serverUrl,
-    actx.owner,
-    actx.repo,
-    config.batch.triageLabel,
-    config.batch.batchLimit,
-    token,
-  );
+  let issues: ReturnType<typeof fetchIssuesByLabel>;
+  try {
+    issues = await fetchIssuesByLabel(
+      serverUrl,
+      actx.owner,
+      actx.repo,
+      config.batch.triageLabel,
+      config.batch.batchLimit,
+      token,
+    );
+  } catch (error) {
+    log.error({ err: error }, "Failed to fetch issues");
+    return ZERO_RESULT;
+  }
 
   // Step 6: Process sequentially
   let issuesProcessed = 0;
