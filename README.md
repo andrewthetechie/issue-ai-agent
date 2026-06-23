@@ -9,6 +9,8 @@
 
 </div>
 
+> **Forgejo only.** Issue AI Agent is a [Forgejo Action](https://forgejo.org/docs/latest/user/actions/) and requires a Forgejo instance with Actions enabled. It is **not** compatible with GitHub Actions.
+
 ## What It Does
 
 When someone opens an issue in your repository, Issue AI Agent:
@@ -18,6 +20,7 @@ When someone opens an issue in your repository, Issue AI Agent:
 3. **Detects duplicates** by searching existing issues and linking potential matches
 4. **Replies** with a contextual comment — bugs get asked for reproduction steps, features get acknowledged, etc.
 5. **Handles follow-up comments** — replies to user comments with relevant information
+6. **Batch triage** — on a schedule (or manual trigger), processes a backlog of issues labelled `triage` in oldest-first order, up to a configurable limit per run
 
 Powered by your LLM of choice.
 
@@ -326,7 +329,7 @@ At least one API key is required. If neither is set, the bot runs in **dev mode*
 ```bash
 npm ci              # Install dependencies
 npm run build       # Compile TypeScript
-npm run bundle      # Bundle for GitHub Action (dist/index.js)
+npm run bundle      # Bundle for Forgejo Action (dist/index.js)
 npm test            # Run tests (Vitest)
 npm run test:watch  # Watch mode
 npm run dev         # TypeScript watch mode
@@ -342,6 +345,12 @@ Forgejo Action (issues.opened / issue_comment.created)
   → label           — Maps classification to repo labels via Forgejo API
   → duplicate       — Searches similar issues, LLM confirms duplicates
   → reply           — Drafts and posts a contextual comment via LLM
+
+Forgejo Action (schedule / workflow_dispatch)  — batch triage mode
+  → loadConfig()    — Fetch .forgejo/issue-ai.yml via Forgejo API
+  → fetchBatch()    — List open issues labelled `triage`, oldest-first, up to batch_limit
+  → per issue: shouldExclude() → classify → label → duplicate
+  → removeTriageLabel() on success; retain on failure for retry
 ```
 
 Key design decisions:
