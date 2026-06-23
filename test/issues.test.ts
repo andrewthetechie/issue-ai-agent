@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { fetchIssuesByLabel } from "../src/forgejo/issues.js";
+import { fetchIssuesByLabel, removeLabelFromIssue } from "../src/forgejo/issues.js";
 
 describe("fetchIssuesByLabel", () => {
   const serverUrl = "https://forgejo.example.com";
@@ -187,5 +187,113 @@ describe("fetchIssuesByLabel", () => {
     const results = await fetchIssuesByLabel(serverUrl, owner, repo, triageLabel, batchLimit, token);
 
     expect(results).toEqual([]);
+  });
+});
+
+describe("removeLabelFromIssue", () => {
+  const serverUrl = "https://forgejo.example.com";
+  const token = "test-token";
+  const owner = "myorg";
+  const repo = "myrepo";
+  const issueIndex = 42;
+  const labelId = 7;
+
+  let originalFetch: typeof global.fetch;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("issues a DELETE to the correct endpoint with correct params", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    await removeLabelFromIssue(serverUrl, owner, repo, issueIndex, labelId, token);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${serverUrl}/api/v1/repos/${owner}/${repo}/issues/${issueIndex}/labels/${labelId}`);
+    expect(init?.method).toBe("DELETE");
+  });
+
+  it("strips trailing slash from serverUrl", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    await removeLabelFromIssue(
+      `${serverUrl}/`,
+      owner,
+      repo,
+      issueIndex,
+      labelId,
+      token,
+    );
+
+    const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).not.toContain("//api");
+    expect(url).toBe("https://forgejo.example.com/api/v1/repos/myorg/myrepo/issues/42/labels/7");
+  });
+
+  it("includes Authorization: token header", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    await removeLabelFromIssue(serverUrl, owner, repo, issueIndex, labelId, token);
+
+    const [_url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const headers = init?.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe(`token ${token}`);
+  });
+
+  it("resolves on 204", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    await expect(
+      removeLabelFromIssue(serverUrl, owner, repo, issueIndex, labelId, token),
+    ).resolves.toBeUndefined();
+  });
+
+  it("resolves on 404 (label not present on issue)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    await expect(
+      removeLabelFromIssue(serverUrl, owner, repo, issueIndex, labelId, token),
+    ).resolves.toBeUndefined();
+  });
+
+  it("throws on 500 with status in the message", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      text: () => Promise.resolve("error details"),
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    await expect(
+      removeLabelFromIssue(serverUrl, owner, repo, issueIndex, labelId, token),
+    ).rejects.toThrow("removeLabelFromIssue failed: 500 Internal Server Error");
   });
 });
