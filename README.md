@@ -210,7 +210,7 @@ When issues are labelled with the batch triage label (default `triage`), the act
 
 **How batch triage works:**
 
-- **Triggered by:** `schedule` (cron) or `workflow_dispatch` events, or any event where issues with the triage label are found.
+- **Triggered by:** `schedule` (cron) or `workflow_dispatch` events.
 - **Oldest-first:** Issues are processed in chronological order (oldest first).
 - **Sequential:** Issues are processed one at a time, up to `batch.batch_limit`.
 - **Triage label removal:** On success, the triage label is removed from the issue. On failure, the label is retained so the issue can be retried on the next run.
