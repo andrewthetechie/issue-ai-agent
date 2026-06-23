@@ -1,4 +1,4 @@
-import type { ActionContext, BatchResult, IssueClassification, Logger, RepoConfig } from "./types.js";
+import type { ActionContext, BatchResult, Issue, IssueClassification, Logger, RepoConfig } from "./types.js";
 import { createProvider, detectProvider } from "./llm/factory.js";
 import type { ProviderName } from "./llm/factory.js";
 import { loadConfig } from "./config/loader.js";
@@ -56,7 +56,7 @@ export async function runBatchPipeline(
   }
 
   // Step 5: Fetch triage-labeled issues
-  let issues: ReturnType<typeof fetchIssuesByLabel>;
+  let issues: Issue[];
   try {
     issues = await fetchIssuesByLabel(
       serverUrl,
@@ -85,7 +85,7 @@ export async function runBatchPipeline(
 
       try {
         const triageLabel = issue.labels.find(
-          (l) => l.name === config.batch.triageLabel,
+          (l: { name: string; id: number }) => l.name === config.batch.triageLabel,
         );
         if (triageLabel) {
           await removeLabelFromIssue(
@@ -168,7 +168,7 @@ export async function runBatchPipeline(
 
     // Remove triage label
     const triageLabel = issue.labels.find(
-      (l) => l.name === config.batch.triageLabel,
+      (l: { name: string; id: number }) => l.name === config.batch.triageLabel,
     );
     if (triageLabel) {
       try {
