@@ -73325,13 +73325,7 @@ async function draftReply(issue, classification, sanitizedBody, sanitizedTitle, 
     return replyText;
 }
 
-;// CONCATENATED MODULE: ./src/utils.ts
-function normalizeServerUrl(url) {
-    return url.replace(/\/$/, "");
-}
-
 ;// CONCATENATED MODULE: ./src/forgejo/labels.ts
-
 const LABEL_PAGE_LIMIT = 100;
 const MAX_LABEL_PAGES = 100; // safety bound: 100 pages * 100/page = 10k labels
 const DEFAULT_LABEL_COLOR = "#ededed";
@@ -73448,32 +73442,10 @@ octokit, logger) {
         }
     }
 }
-/**
- * Removes a label from an issue by label id via the Forgejo API.
- *
- * Endpoint: DELETE /api/v1/repos/{owner}/{repo}/issues/{issueIndex}/labels/{labelId}
- *
- * A 404 response (label not present on the issue) is treated as success
- * because the desired end state is "label absent".
- */
-async function removeLabelFromIssue(serverUrl, owner, repo, issueIndex, labelId, token) {
-    const baseUrl = normalizeServerUrl(serverUrl);
-    const url = `${baseUrl}/api/v1/repos/${owner}/${repo}/issues/${issueIndex}/labels/${labelId}`;
-    const response = await fetch(url, {
-        method: "DELETE",
-        headers: {
-            Authorization: `token ${token}`,
-        },
-    });
-    if (response.status === 404) {
-        // Label not present on the issue — desired end state is "label absent"
-        return;
-    }
-    if (!response.ok) {
-        const body = await response.text();
-        throw new Error(`removeLabelFromIssue failed: ${response.status} ${response.statusText} — ${body}`);
-    }
-    return;
+
+;// CONCATENATED MODULE: ./src/utils.ts
+function normalizeServerUrl(url) {
+    return url.replace(/\/$/, "");
 }
 
 ;// CONCATENATED MODULE: ./src/forgejo/search.ts
@@ -73860,6 +73832,33 @@ async function fetchIssuesByLabel(serverUrl, owner, repo, triageLabel, batchLimi
         created_at: item.created_at,
     }));
 }
+/**
+ * Removes a label from an issue by label id via the Forgejo API.
+ *
+ * Endpoint: DELETE /api/v1/repos/{owner}/{repo}/issues/{issueIndex}/labels/{labelId}
+ *
+ * A 404 response (label not present on the issue) is treated as success
+ * because the desired end state is "label absent".
+ */
+async function removeLabelFromIssue(serverUrl, owner, repo, issueIndex, labelId, token) {
+    const baseUrl = normalizeServerUrl(serverUrl);
+    const url = `${baseUrl}/api/v1/repos/${owner}/${repo}/issues/${issueIndex}/labels/${labelId}`;
+    const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+            Authorization: `token ${token}`,
+        },
+    });
+    if (response.status === 404) {
+        // Label not present on the issue — desired end state is "label absent"
+        return;
+    }
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`removeLabelFromIssue failed: ${response.status} ${response.statusText} — ${body}`);
+    }
+    return;
+}
 
 ;// CONCATENATED MODULE: ./src/forgejo/comments.ts
 const SIGN_OFF = "-- Issue AI Agent :robot:";
@@ -73903,7 +73902,6 @@ async function postExcludeRemovalComment(octokit, owner, repo, issueNumber, tria
 }
 
 ;// CONCATENATED MODULE: ./src/batch.ts
-
 
 
 
@@ -73984,29 +73982,19 @@ async function runBatchPipeline(actx, serverUrl, token) {
                 issuesFailed++;
                 continue;
             }
-        }
-        else {
-            classification = {
-                category: "question",
-                priority: "medium",
-                confidence: 0,
-                summary: "",
-                suggestedLabels: [],
-                reasoning: "Classification disabled",
-            };
-        }
-        // Apply labels
-        try {
-            const labels = resolveLabels(classification, config);
-            await applyLabels(actx.owner, actx.repo, issue.number, labels, actx.octokit, log);
-        }
-        catch (error) {
-            log.error({ err: error, issueNumber: issue.number }, "Label application failed");
-            issuesFailed++;
-            continue;
+            // Apply labels
+            try {
+                const labels = resolveLabels(classification, config);
+                await applyLabels(actx.owner, actx.repo, issue.number, labels, actx.octokit, log);
+            }
+            catch (error) {
+                log.error({ err: error, issueNumber: issue.number }, "Label application failed");
+                issuesFailed++;
+                continue;
+            }
         }
         // Duplicate detection — separate try/catch so failures don't block triage
-        if (config.features.duplicateSearch && llmClient) {
+        if (config.features.duplicateSearch) {
             try {
                 const candidates = await searchSimilarIssues(actx.owner, actx.repo, sanitizedTitle, issue.number, serverUrl, token);
                 if (candidates.length > 0) {
