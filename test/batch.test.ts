@@ -32,7 +32,7 @@ vi.mock("../src/config/loader.js", () => ({
     },
     security: { maxIssueLength: 10000 },
     exclude: { labels: ["wontfix", "skip-ai"], users: ["dependabot[bot]"] },
-    batch: { triageLabel: "triage", batchLimit: 5 },
+    batch: { triageLabel: "triage", batchLimit: 5, commentOnExclude: false },
     llm: { provider: "anthropic", model: "claude-haiku-4-5-20251001", maxTokens: 2048 },
   }),
 }));
@@ -815,9 +815,9 @@ describe("runBatchPipeline", () => {
     expect(postDuplicateComment).not.toHaveBeenCalled();
   });
 
-  // ── Excluded-by-user → drain: remove label + comment with reason="user" ─
+  // ── Excluded-by-user → drain: remove label, no comment by default ────
 
-  it("excluded-by-user issue gets label removed and comment posted with reason='user'", async () => {
+  it("excluded-by-user issue gets label removed but no comment by default", async () => {
     const { createProvider } = await import("../src/llm/factory.js");
     vi.mocked(createProvider).mockReturnValueOnce({
       complete: vi.fn().mockResolvedValue({
@@ -846,23 +846,16 @@ describe("runBatchPipeline", () => {
     expect(result).toEqual({ issuesProcessed: 1, issuesFailed: 0 });
     // No classify/label for excluded issue
     expect(actx.octokit.rest.issues.addLabels).toHaveBeenCalledTimes(1);
-    // Label removal + comment for excluded issue
+    // Label removal for both issues (included + excluded), no comment
     expect(global.fetch).toHaveBeenCalledTimes(3); // 1 issues list + 1 remove label (included) + 1 remove label (excluded)
     const { postExcludeRemovalComment } = await import("../src/forgejo/comments.js");
-    expect(postExcludeRemovalComment).toHaveBeenCalledTimes(1);
-    expect(postExcludeRemovalComment).toHaveBeenCalledWith(
-      actx.octokit,
-      "owner",
-      "repo",
-      2,
-      "triage",
-      "user",
-    );
+    // commentOnExclude defaults to false, so no comment is posted
+    expect(postExcludeRemovalComment).not.toHaveBeenCalled();
   });
 
-  // ── Excluded-by-label → drain with reason="label" ──────────────────────
+  // ── Excluded-by-label → drain: remove label, no comment by default ────
 
-  it("excluded-by-label issue gets comment posted with reason='label'", async () => {
+  it("excluded-by-label issue gets label removed but no comment by default", async () => {
     const { createProvider } = await import("../src/llm/factory.js");
     vi.mocked(createProvider).mockReturnValueOnce({
       complete: vi.fn().mockResolvedValue({
@@ -890,6 +883,45 @@ describe("runBatchPipeline", () => {
     expect(result).toEqual({ issuesProcessed: 0, issuesFailed: 0 });
     // No classify/label for excluded issue
     expect(actx.octokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    // commentOnExclude defaults to false, so no comment is posted
+    const { postExcludeRemovalComment } = await import("../src/forgejo/comments.js");
+    expect(postExcludeRemovalComment).not.toHaveBeenCalled();
+  });
+
+  // ── Excluded-by-label with commentOnExclude=true → comment posted ──────
+
+  it("excluded-by-label issue gets comment posted when commentOnExclude is true", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          category: "bug",
+          priority: "high",
+          confidence: 0.9,
+          summary: "Bug",
+          suggestedLabels: ["bug"],
+          reasoning: "Bug",
+        }),
+      }),
+    } as any);
+
+    const { loadConfig } = await import("../src/config/loader.js");
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      ...DEFAULT_CONFIG,
+      batch: { ...DEFAULT_CONFIG.batch, commentOnExclude: true },
+    });
+
+    const excluded = makeMockIssue({
+      number: 1,
+      labels: [{ name: "triage", id: 100 }, { name: "wontfix" }],
+    });
+    mockFetchIssues([excluded]);
+
+    const actx = createMockActionContext();
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    expect(result).toEqual({ issuesProcessed: 0, issuesFailed: 0 });
+    expect(actx.octokit.rest.issues.addLabels).not.toHaveBeenCalled();
     const { postExcludeRemovalComment } = await import("../src/forgejo/comments.js");
     expect(postExcludeRemovalComment).toHaveBeenCalledTimes(1);
     expect(postExcludeRemovalComment).toHaveBeenCalledWith(
@@ -900,6 +932,42 @@ describe("runBatchPipeline", () => {
       "triage",
       "label",
     );
+  });
+
+  // ── skip-ai label → drained silently (no comment) by default ──────────
+
+  it("skip-ai labeled issue is drained silently (label removed, no comment) by default", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          category: "bug",
+          priority: "high",
+          confidence: 0.9,
+          summary: "Bug",
+          suggestedLabels: ["bug"],
+          reasoning: "Bug",
+        }),
+      }),
+    } as any);
+
+    const excluded = makeMockIssue({
+      number: 1,
+      labels: [{ name: "triage", id: 100 }, { name: "skip-ai" }],
+    });
+    mockFetchIssues([excluded]);
+
+    const actx = createMockActionContext();
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    // Excluded issue is not counted
+    expect(result).toEqual({ issuesProcessed: 0, issuesFailed: 0 });
+    expect(actx.octokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    // Label removal happens (1 issues list + 1 remove label)
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    // No comment posted — matching silent-skip semantics
+    const { postExcludeRemovalComment } = await import("../src/forgejo/comments.js");
+    expect(postExcludeRemovalComment).not.toHaveBeenCalled();
   });
 
   // ── Excluded issue label removal failure → swallowed ───────────────────

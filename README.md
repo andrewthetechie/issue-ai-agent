@@ -175,6 +175,11 @@ prompts:
     Custom duplicate detection instructions...
   commentReply:                         # Override comment reply prompt
     file: prompts/custom-comment-reply.md
+
+batch:
+  triage_label: triage                  # Label to queue issues for batch processing
+  batch_limit: 5                        # Max issues per batch run
+  comment_on_exclude: false             # Post comment on excluded issues (opt-in)
 ```
 
 > **Note:** File paths in `prompts` are resolved relative to the repository root. Paths with `..` segments or absolute paths are rejected. If a prompt file is missing, the action logs a warning and falls back to the built-in default. Prompt files are capped at 75 KB. For prompts that require structured output (`classify`, `duplicate`), a format suffix is always appended to guarantee valid JSON — even when the prompt body is entirely custom.
@@ -203,6 +208,7 @@ prompts:
 | `prompts.commentReply` | *(built-in default)* | Custom system prompt for follow-up comment replies. Same inline-or-file format. Also accepts `comment_reply` (snake_case) as an alias |
 | `batch.triage_label` | `"triage"` | Label used to find issues for batch processing. Issues carrying this label are processed oldest-first in a single run. The label is removed on success and retained on failure so the issue can be retried. |
 | `batch.batch_limit` | `5` | Maximum number of issues to process per batch run. Useful for controlling cost and rate limits. |
+| `batch.comment_on_exclude` | `false` | When `true`, posts an explanatory comment on excluded issues (e.g. those with `skip-ai` or `wontfix`). Defaults to `false` so excluded issues are drained silently, matching the event-driven pipeline's silent-skip semantics. |
 
 ### Batch Triage
 

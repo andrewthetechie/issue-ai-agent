@@ -70,7 +70,7 @@ export async function runBatchPipeline(
   let issuesFailed = 0;
 
   for (const issue of issues) {
-    // Exclude check — drain: remove triage label + comment, do not count
+    // Exclude check — drain: remove triage label (always), post comment (opt-in), do not count
     if (shouldExclude({ user: issue.user, labels: issue.labels }, config)) {
       const reason: "user" | "label" =
         issue.user && config.exclude.users.includes(issue.user.login) ? "user" : "label";
@@ -91,14 +91,16 @@ export async function runBatchPipeline(
             token,
           );
         }
-        await postExcludeRemovalComment(
-          actx.octokit,
-          actx.owner,
-          actx.repo,
-          issue.number,
-          config.batch.triageLabel,
-          reason,
-        );
+        if (config.batch.commentOnExclude) {
+          await postExcludeRemovalComment(
+            actx.octokit,
+            actx.owner,
+            actx.repo,
+            issue.number,
+            config.batch.triageLabel,
+            reason,
+          );
+        }
       } catch (error) {
         log.warn({ err: error, issueNumber: issue.number }, "Exclude-drain failed — continuing");
       }
