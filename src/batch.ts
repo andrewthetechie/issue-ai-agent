@@ -4,10 +4,9 @@ import type { ProviderName } from "./llm/factory.js";
 import { loadConfig } from "./config/loader.js";
 import { sanitizeIssueBody, sanitizeIssueTitle } from "./sanitizer.js";
 import { classifyIssue } from "./classifier.js";
-import { resolveLabels, applyLabels, ensureLabelsExist } from "./forgejo/labels.js";
+import { resolveLabels, applyLabels, ensureLabelsExist, removeLabelFromIssue } from "./forgejo/labels.js";
 import { shouldExclude } from "./exclude.js";
 import { fetchIssuesByLabel } from "./forgejo/issues.js";
-import { removeLabelFromIssue } from "./forgejo/labels.js";
 import { searchSimilarIssues } from "./forgejo/search.js";
 import { detectDuplicates } from "./duplicate.js";
 import { postDuplicateComment, postExcludeRemovalComment } from "./forgejo/comments.js";
@@ -138,7 +137,7 @@ export async function runBatchPipeline(
     }
 
     // Duplicate detection — separate try/catch so failures don't block triage
-    if (config.features.duplicateSearch && llmClient) {
+    if (config.features.duplicateSearch) {
       try {
         const candidates = await searchSimilarIssues(
           actx.owner, actx.repo, sanitizedTitle, issue.number, serverUrl, token,
