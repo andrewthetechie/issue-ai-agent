@@ -454,6 +454,48 @@ describe("runBatchPipeline", () => {
     expect(result).toEqual({ issuesProcessed: 0, issuesFailed: 0 });
   });
 
+  // ── Fetch issues failure (Forgejo non-OK) ──────────────────────────────
+
+  it("returns {0,0} when fetchIssuesByLabel errors (e.g. HTTP 500)", async () => {
+    const { createProvider } = await import("../src/llm/factory.js");
+    vi.mocked(createProvider).mockReturnValueOnce({
+      complete: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          category: "bug",
+          priority: "high",
+          confidence: 0.9,
+          summary: "Bug",
+          suggestedLabels: ["bug"],
+          reasoning: "Bug",
+        }),
+      }),
+    } as any);
+
+    const mockFetch = vi.fn().mockImplementation((_url: string) => {
+      const url = _url as string;
+      if (url.includes("/issues?")) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          statusText: "Internal Server Error",
+          text: () => Promise.resolve("Forgejo is down"),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    global.fetch = mockFetch as unknown as typeof global.fetch;
+
+    const actx = createMockActionContext();
+    const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
+
+    expect(result).toEqual({ issuesProcessed: 0, issuesFailed: 0 });
+    // Error should have been logged
+    expect(actx.logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      "Failed to fetch issues",
+    );
+  });
+
   // ── createLabels before loop ───────────────────────────────────────────
 
   it("calls ensureLabelsExist before processing when createLabels is true", async () => {
