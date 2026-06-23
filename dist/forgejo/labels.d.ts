@@ -13,12 +13,3 @@ export declare function applyLabels(owner: string, repo: string, issueNumber: nu
  *    list/create race and swallowed silently.
  */
 export declare function ensureLabelsExist(owner: string, repo: string, config: RepoConfig, octokit: any, logger: Logger): Promise<void>;
-/**
- * Removes a label from an issue by label id via the Forgejo API.
- *
- * Endpoint: DELETE /api/v1/repos/{owner}/{repo}/issues/{issueIndex}/labels/{labelId}
- *
- * A 404 response (label not present on the issue) is treated as success
- * because the desired end state is "label absent".
- */
-export declare function removeLabelFromIssue(serverUrl: string, owner: string, repo: string, issueIndex: number, labelId: number, token: string): Promise<void>;
