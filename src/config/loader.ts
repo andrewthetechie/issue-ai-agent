@@ -99,6 +99,7 @@ export async function loadConfig(
     batch: {
       triageLabel: repoConfig.batch?.triage_label ?? DEFAULT_CONFIG.batch.triageLabel,
       batchLimit: repoConfig.batch?.batch_limit ?? DEFAULT_CONFIG.batch.batchLimit,
+      commentOnExclude: repoConfig.batch?.comment_on_exclude ?? DEFAULT_CONFIG.batch.commentOnExclude,
     },
     llm: {
       provider: repoConfig.llm?.provider ?? DEFAULT_CONFIG.llm.provider,

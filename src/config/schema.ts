@@ -34,6 +34,7 @@ export const DEFAULT_CONFIG: RepoConfig = {
   batch: {
     triageLabel: "triage",
     batchLimit: 5,
+    commentOnExclude: false,
   },
   llm: {
     provider: "anthropic" as const,
