@@ -62,6 +62,23 @@ vi.mock("../src/forgejo/comments.js", () => ({
   postExcludeRemovalComment: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Track issue processing order for ordering tests
+const processedOrder: number[] = [];
+
+vi.mock("../src/classifier.js", () => ({
+  classifyIssue: vi.fn().mockImplementation((issue: { number: number }) => {
+    processedOrder.push(issue.number);
+    return Promise.resolve({
+      category: "bug",
+      priority: "high",
+      confidence: 0.9,
+      summary: "Bug",
+      suggestedLabels: ["bug"],
+      reasoning: "Bug",
+    });
+  }),
+}));
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function createMockActionContext(overrides: Partial<ActionContext> = {}): ActionContext {
@@ -160,6 +177,7 @@ describe("runBatchPipeline", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    processedOrder.splice(0, processedOrder.length);
     // Ensure an LLM key is set so createProvider can return a client by default
     process.env.ANTHROPIC_API_KEY = "test-key";
     delete process.env.OPENAI_API_KEY;
@@ -262,22 +280,7 @@ describe("runBatchPipeline", () => {
 
   it("processes issues in oldest-first order", async () => {
     const { createProvider } = await import("../src/llm/factory.js");
-    const callOrder: number[] = [];
-    vi.mocked(createProvider).mockReturnValueOnce({
-      complete: vi.fn().mockImplementation(() => {
-        callOrder.push(callOrder.length + 1);
-        return Promise.resolve({
-          text: JSON.stringify({
-            category: "bug",
-            priority: "high",
-            confidence: 0.9,
-            summary: "Bug",
-            suggestedLabels: ["bug"],
-            reasoning: "Bug",
-          }),
-        });
-      }),
-    } as any);
+    vi.mocked(createProvider).mockReturnValueOnce({} as any);
 
     // Provide issues in reverse chronological order
     const issues = [
@@ -290,17 +293,18 @@ describe("runBatchPipeline", () => {
     const actx = createMockActionContext();
     await runBatchPipeline(actx, "https://forgejo.example.com", "token");
 
-    // API sorts oldest-first, so order should be 1, 2, 3
-    expect(callOrder).toEqual([1, 2, 3]);
+    // Pipeline processes issues in the order returned by fetch (no client-side reordering)
+    expect(processedOrder).toEqual([3, 1, 2]);
   });
 
   // ── Classify failure → retain label, increment failed ──────────────────
 
   it("classify failure retains label and increments issuesFailed", async () => {
     const { createProvider } = await import("../src/llm/factory.js");
-    vi.mocked(createProvider).mockReturnValueOnce({
-      complete: vi.fn().mockRejectedValue(new Error("LLM timeout")),
-    } as any);
+    vi.mocked(createProvider).mockReturnValueOnce({} as any);
+
+    const { classifyIssue } = await import("../src/classifier.js");
+    vi.mocked(classifyIssue).mockRejectedValueOnce(new Error("LLM timeout"));
 
     const issue = makeMockIssue({ number: 1 });
     mockFetchIssues([issue]);
@@ -409,30 +413,21 @@ describe("runBatchPipeline", () => {
 
   it("one issue failing does not abort processing of the rest", async () => {
     const { createProvider } = await import("../src/llm/factory.js");
-    vi.mocked(createProvider).mockReturnValueOnce({
-      complete: vi.fn()
-        .mockResolvedValueOnce({
-          text: JSON.stringify({
-            category: "bug",
-            priority: "high",
-            confidence: 0.9,
-            summary: "Bug",
-            suggestedLabels: ["bug"],
-            reasoning: "Bug",
-          }),
-        })
-        .mockRejectedValueOnce(new Error("LLM timeout on issue 2"))
-        .mockResolvedValueOnce({
-          text: JSON.stringify({
-            category: "bug",
-            priority: "high",
-            confidence: 0.9,
-            summary: "Bug",
-            suggestedLabels: ["bug"],
-            reasoning: "Bug",
-          }),
-        }),
-    } as any);
+    vi.mocked(createProvider).mockReturnValueOnce({} as any);
+
+    const { classifyIssue } = await import("../src/classifier.js");
+    const mockClassify = vi.mocked(classifyIssue);
+    const successResult = {
+      category: "bug",
+      priority: "high",
+      confidence: 0.9,
+      summary: "Bug",
+      suggestedLabels: ["bug"],
+      reasoning: "Bug",
+    };
+    mockClassify.mockResolvedValueOnce(successResult)
+      .mockRejectedValueOnce(new Error("LLM timeout on issue 2"))
+      .mockResolvedValueOnce(successResult);
 
     const issue1 = makeMockIssue({ number: 1, created_at: "2026-01-01T00:00:00Z" });
     const issue2 = makeMockIssue({ number: 2, created_at: "2026-01-02T00:00:00Z" });
@@ -670,8 +665,8 @@ describe("runBatchPipeline", () => {
 
     expect(result).toEqual({ issuesProcessed: 1, issuesFailed: 0 });
     expect(detectDuplicates).toHaveBeenCalledTimes(1);
-    // createComment should NOT have been called
-    expect(actx.octokit.rest.issues.createComment).not.toHaveBeenCalled();
+    const { postDuplicateComment } = await import("../src/forgejo/comments.js");
+    expect(postDuplicateComment).not.toHaveBeenCalled();
   });
 
   // ── No candidates → no detectDuplicates call ───────────────────────────
