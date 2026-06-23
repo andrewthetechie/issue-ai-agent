@@ -63,6 +63,11 @@ export interface RepoConfig {
     labels: string[];
     users: string[];
   };
+  batch: {
+    triageLabel: string;
+    batchLimit: number;
+    commentOnExclude: boolean;
+  };
   llm: {
     provider: "anthropic" | "openai";
     model: string;
@@ -84,6 +89,11 @@ export interface PipelineError {
   cause?: Error;
 }
 
+export interface BatchResult {
+  issuesProcessed: number;
+  issuesFailed: number;
+}
+
 export interface Logger {
   info(msgOrObj: unknown, msg?: string): void;
   warn(msgOrObj: unknown, msg?: string): void;
@@ -101,7 +111,7 @@ export interface ActionContext {
   octokit: any;
   logger: Logger;
   configPath?: string;
-  eventName: "issues" | "issue_comment";
+  eventName: "issues" | "issue_comment" | "schedule" | "workflow_dispatch";
   payload: {
     action: string;
     issue: {

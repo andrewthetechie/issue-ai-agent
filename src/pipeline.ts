@@ -8,26 +8,7 @@ import { draftReply } from "./replier.js";
 import { resolveLabels, applyLabels, ensureLabelsExist } from "./forgejo/labels.js";
 import { searchSimilarIssues } from "./forgejo/search.js";
 import { detectDuplicates } from "./duplicate.js";
-
-function shouldExclude(
-  payload: ActionContext["payload"],
-  config: RepoConfig,
-): boolean {
-  const issue = payload.issue;
-  const existingLabels = (issue.labels ?? []).map((l: { name: string }) => l.name);
-
-  if (issue.user && config.exclude.users.includes(issue.user.login)) {
-    return true;
-  }
-
-  for (const label of existingLabels) {
-    if (config.exclude.labels.includes(label)) {
-      return true;
-    }
-  }
-
-  return false;
-}
+import { shouldExclude } from "./exclude.js";
 
 export async function runPipeline(
   actx: ActionContext,
@@ -61,7 +42,7 @@ export async function runPipeline(
     return result;
   }
 
-  if (shouldExclude(actx.payload, config)) {
+  if (shouldExclude({ user: actx.payload.issue.user, labels: actx.payload.issue.labels ?? [] }, config)) {
     log.info("Issue excluded by config, skipping");
     return result;
   }

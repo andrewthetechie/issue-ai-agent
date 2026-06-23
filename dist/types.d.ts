@@ -28,8 +28,19 @@ export interface IssueClassification {
     reasoning: string;
     relatedIssues?: RelatedIssue[];
 }
+export type PromptConfigEntry = string | {
+    file: string;
+};
+export type PromptKey = "classify" | "reply" | "duplicate" | "commentReply";
+export interface RawPromptsConfig {
+    classify?: PromptConfigEntry;
+    reply?: PromptConfigEntry;
+    duplicate?: PromptConfigEntry;
+    commentReply?: PromptConfigEntry;
+}
 export interface RepoConfig {
     enabled: boolean;
+    createLabels: boolean;
     features: {
         classify: boolean;
         reply: boolean;
@@ -37,6 +48,7 @@ export interface RepoConfig {
         commentReply: boolean;
     };
     labelMapping: Record<string, string[]>;
+    priorityLabelMapping: Record<string, string[]>;
     security: {
         maxIssueLength: number;
     };
@@ -44,11 +56,17 @@ export interface RepoConfig {
         labels: string[];
         users: string[];
     };
+    batch: {
+        triageLabel: string;
+        batchLimit: number;
+        commentOnExclude: boolean;
+    };
     llm: {
         provider: "anthropic" | "openai";
         model: string;
         maxTokens: number;
     };
+    prompts?: Partial<Record<PromptKey, string>>;
 }
 export interface PipelineResult {
     classification: IssueClassification | null;
@@ -57,9 +75,13 @@ export interface PipelineResult {
     errors: PipelineError[];
 }
 export interface PipelineError {
-    step: "classify" | "label" | "reply" | "duplicate";
+    step: "classify" | "label" | "reply" | "duplicate" | "createLabels";
     message: string;
     cause?: Error;
+}
+export interface BatchResult {
+    issuesProcessed: number;
+    issuesFailed: number;
 }
 export interface Logger {
     info(msgOrObj: unknown, msg?: string): void;
@@ -75,7 +97,7 @@ export interface ActionContext {
     octokit: any;
     logger: Logger;
     configPath?: string;
-    eventName: "issues" | "issue_comment";
+    eventName: "issues" | "issue_comment" | "schedule" | "workflow_dispatch";
     payload: {
         action: string;
         issue: {

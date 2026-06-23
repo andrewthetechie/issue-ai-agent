@@ -45,6 +45,10 @@ on:
     types: [opened]
   issue_comment:
     types: [created]
+  schedule:
+    # Run batch triage every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   triage:
@@ -171,6 +175,11 @@ prompts:
     Custom duplicate detection instructions...
   commentReply:                         # Override comment reply prompt
     file: prompts/custom-comment-reply.md
+
+batch:
+  triage_label: triage                  # Label to queue issues for batch processing
+  batch_limit: 5                        # Max issues per batch run
+  comment_on_exclude: false             # Post comment on excluded issues (opt-in)
 ```
 
 > **Note:** File paths in `prompts` are resolved relative to the repository root. Paths with `..` segments or absolute paths are rejected. If a prompt file is missing, the action logs a warning and falls back to the built-in default. Prompt files are capped at 75 KB. For prompts that require structured output (`classify`, `duplicate`), a format suffix is always appended to guarantee valid JSON — even when the prompt body is entirely custom.
@@ -197,6 +206,28 @@ prompts:
 | `prompts.reply` | *(built-in default)* | Custom system prompt for AI-drafted replies. Same inline-or-file format |
 | `prompts.duplicate` | *(built-in default)* | Custom system prompt for duplicate detection. Same inline-or-file format |
 | `prompts.commentReply` | *(built-in default)* | Custom system prompt for follow-up comment replies. Same inline-or-file format. Also accepts `comment_reply` (snake_case) as an alias |
+| `batch.triage_label` | `"triage"` | Label used to find issues for batch processing. Issues carrying this label are processed oldest-first in a single run. The label is removed on success and retained on failure so the issue can be retried. |
+| `batch.batch_limit` | `5` | Maximum number of issues to process per batch run. Useful for controlling cost and rate limits. |
+| `batch.comment_on_exclude` | `false` | When `true`, posts an explanatory comment on excluded issues (e.g. those with `skip-ai` or `wontfix`). Defaults to `false` so excluded issues are drained silently, matching the event-driven pipeline's silent-skip semantics. |
+
+### Batch Triage
+
+When issues are labelled with the batch triage label (default `triage`), the action processes them in **batch mode** instead of the per-issue flow. This is useful for catching up on a backlog of untriaged issues.
+
+**How batch triage works:**
+
+- **Triggered by:** `schedule` (cron) or `workflow_dispatch` events.
+- **Oldest-first:** Issues are processed in chronological order (oldest first).
+- **Sequential:** Issues are processed one at a time, up to `batch.batch_limit`.
+- **Triage label removal:** On success, the triage label is removed from the issue. On failure, the label is retained so the issue can be retried on the next run.
+- **No generic acknowledgment:** Batch mode never posts classification or reply comments. A bug, feature, or any other classification alone produces no comment. The only comments batch mode posts are: (a) a duplicate comment when a duplicate issue is found, and (b) an exclude-removal comment when an excluded issue is drained — the latter only when `batch.comment_on_exclude` is set to `true` (default: `false`, so excluded issues are drained silently).
+
+**Batch outputs:**
+
+| Output | Description |
+|--------|-------------|
+| `issues-processed` | Number of issues successfully processed in this batch run |
+| `issues-failed` | Number of issues that failed during batch processing |
 
 ### Priority Label Mapping
 
@@ -287,6 +318,8 @@ At least one API key is required. If neither is set, the bot runs in **dev mode*
 | `priority` | Classified issue priority |
 | `labels-applied` | Comma-separated list of applied labels |
 | `reply-posted` | Whether a reply comment was posted |
+| `issues-processed` | Number of issues successfully processed in a batch run |
+| `issues-failed` | Number of issues that failed during batch processing |
 
 ## Development
 

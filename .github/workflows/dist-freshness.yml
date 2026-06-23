@@ -1,0 +1,27 @@
+name: Dist Freshness Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dist-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run bundle
+      - name: Check dist/ is up to date
+        run: |
+          if ! git diff --quiet -- dist/; then
+            echo "::error::dist/ is out of sync with src/. Run 'npm run build && npm run bundle' and commit the changes."
+            git diff --stat -- dist/
+            exit 1
+          fi
