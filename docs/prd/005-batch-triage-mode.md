@@ -20,13 +20,14 @@ Add a **batch triage mode** that activates when the workflow is triggered by a `
 8. As a maintainer, I want the triage label removed from an issue after the agent successfully classifies and labels it, so that the issue does not get picked up again on the next run.
 9. As a maintainer, I want the triage label left in place if classification or labeling fails, so that the issue is retried on the next scheduled run rather than silently skipped.
 10. As a maintainer, I want the agent to apply existing exclude rules (excluded users, excluded labels) in batch mode, so that bot-filed issues and already-resolved issues are never accidentally processed.
-11. As a maintainer, I want the agent to search for duplicate issues even in batch mode, so that stale duplicate issues in the backlog are identified.
-12. As a maintainer, I want the agent to post a short templated comment when it finds a duplicate in batch mode, so that the duplicate relationship is surfaced even though no generic acknowledgment reply is posted.
-13. As a maintainer, I want no generic acknowledgment reply posted to old issues in batch mode, so that issue authors are not spammed with out-of-context "thanks for filing" responses.
-14. As a maintainer, I want a single workflow file covering all four trigger types (`issues`, `issue_comment`, `schedule`, `workflow_dispatch`) so that there is one place to configure the agent.
-15. As a maintainer, I want the action to report `issues-processed` and `issues-failed` output counts in batch mode, so that I can observe batch run health from the workflow summary.
-16. As a maintainer, I want the batch sweep to process issues sequentially so that failures are predictable and rate limit exposure is minimised.
-17. As a maintainer, I want duplicate search failures in batch mode to not block triage label removal, so that a transient LLM error doesn't cause an issue to be re-processed unnecessarily.
+11. As a maintainer, I want excluded issues to have their triage label removed and receive a brief comment explaining the exclusion, so that issue authors understand why automated triage did not run and the issue does not re-enter the batch queue.
+12. As a maintainer, I want the agent to search for duplicate issues even in batch mode, so that stale duplicate issues in the backlog are identified.
+13. As a maintainer, I want the agent to post a short templated comment when it finds a duplicate in batch mode, so that the duplicate relationship is surfaced even though no generic acknowledgment reply is posted.
+14. As a maintainer, I want no generic acknowledgment reply posted to old issues in batch mode, so that issue authors are not spammed with out-of-context "thanks for filing" responses.
+15. As a maintainer, I want a single workflow file covering all four trigger types (`issues`, `issue_comment`, `schedule`, `workflow_dispatch`) so that there is one place to configure the agent.
+16. As a maintainer, I want the action to report `issues-processed` and `issues-failed` output counts in batch mode, so that I can observe batch run health from the workflow summary.
+17. As a maintainer, I want the batch sweep to process issues sequentially so that failures are predictable and rate limit exposure is minimised.
+18. As a maintainer, I want duplicate search failures in batch mode to not block triage label removal, so that a transient LLM error doesn't cause an issue to be re-processed unnecessarily.
 
 ## Implementation Decisions
 
@@ -60,7 +61,7 @@ Add a **batch triage mode** that activates when the workflow is triggered by a `
 
 - **No `workflow_dispatch` inputs:** The config file is the sole source of truth for `triage_label` and `batch_limit`. Manual dispatch runs use whatever values are in the config.
 
-- **Exclude rules apply:** Before processing each fetched issue, the extracted `shouldExclude` logic (excluded users, excluded labels) is applied. Issues that match are skipped and do not count against the `issuesFailed` count — they are silently bypassed.
+- **Exclude rules apply:** Before processing each fetched issue, the extracted `shouldExclude` logic (excluded users, excluded labels) is applied. Issues that match are **drained**: the triage label is removed (so the issue is not re-queued on the next run) and an explanatory comment is posted via `postExcludeRemovalComment` stating whether the exclusion reason is `"user"` (the issue author is on the configured exclude list) or `"label"` (the issue carries a configured excluded label). This drain behaviour is always-on (no config flag to disable it). Drain failures (label removal or comment post errors) are swallowed with a warning and do not count against `issuesFailed`. Excluded issues are not processed and do not count against either `issuesProcessed` or `issuesFailed`.
 
 ## Testing Decisions
 
