@@ -1052,9 +1052,9 @@ describe("runBatchPipeline", () => {
     expect(postExcludeRemovalComment).not.toHaveBeenCalled();
   });
 
-  // ── Malformed issue (null user/labels) → batch survives ────────────────
+  // ── Issues with null user/labels (normalized upstream by fetchIssuesByLabel) ──
 
-  it("malformed issue with null user and null labels does not abort batch, remaining issues are processed", async () => {
+  it("issues with null user and null labels are processed normally after upstream normalization", async () => {
     const { createProvider } = await import("../src/llm/factory.js");
     vi.mocked(createProvider).mockReturnValueOnce({
       complete: vi.fn().mockResolvedValue({
@@ -1069,26 +1069,26 @@ describe("runBatchPipeline", () => {
       }),
     } as any);
 
-    // Valid issue first, then malformed, then another valid
+    // fetchIssuesByLabel normalizes null user → { login: "" } and null labels → []
+    // before items reach the batch loop, so all three are processed normally
     const valid1 = makeMockIssue({ number: 1, created_at: "2026-01-01T00:00:00Z" });
-    const malformed = makeMockIssue({
+    const normalized = makeMockIssue({
       number: 2,
       user: null,
       labels: null,
       created_at: "2026-01-02T00:00:00Z",
     });
     const valid2 = makeMockIssue({ number: 3, created_at: "2026-01-03T00:00:00Z" });
-    mockFetchIssues([valid1, malformed, valid2]);
+    mockFetchIssues([valid1, normalized, valid2]);
 
     const actx = createMockActionContext();
     const result = await runBatchPipeline(actx, "https://forgejo.example.com", "token");
 
-    // All three issues are processed (malformed one has empty user and empty labels)
-    expect(result.issuesProcessed).toBeGreaterThanOrEqual(1);
-    // The run does not throw — malformed item is handled gracefully
-    expect(result).toBeDefined();
-    // At least the valid issues got labels applied
-    expect(actx.octokit.rest.issues.addLabels).toHaveBeenCalled();
+    // All three issues are accounted for (the null-user/null-labels issue is
+    // normalized upstream by fetchIssuesByLabel, so the batch loop sees a normal issue)
+    expect(result).toEqual({ issuesProcessed: 3, issuesFailed: 0 });
+    // Labels applied for all three issues
+    expect(actx.octokit.rest.issues.addLabels).toHaveBeenCalledTimes(3);
   });
 
   });
