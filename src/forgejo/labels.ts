@@ -1,5 +1,4 @@
 import type { IssueClassification, Logger, RepoConfig } from "../types.js";
-import { normalizeServerUrl } from "../utils.js";
 
 const LABEL_PAGE_LIMIT = 100;
 const MAX_LABEL_PAGES = 100; // safety bound: 100 pages * 100/page = 10k labels
@@ -141,43 +140,4 @@ export async function ensureLabelsExist(
       logger.warn({ label: name }, "Failed to create label");
     }
   }
-}
-
-/**
- * Removes a label from an issue by label id via the Forgejo API.
- *
- * Endpoint: DELETE /api/v1/repos/{owner}/{repo}/issues/{issueIndex}/labels/{labelId}
- *
- * A 404 response (label not present on the issue) is treated as success
- * because the desired end state is "label absent".
- */
-export async function removeLabelFromIssue(
-  serverUrl: string,
-  owner: string,
-  repo: string,
-  issueIndex: number,
-  labelId: number,
-  token: string,
-): Promise<void> {
-  const baseUrl = normalizeServerUrl(serverUrl);
-  const url = `${baseUrl}/api/v1/repos/${owner}/${repo}/issues/${issueIndex}/labels/${labelId}`;
-
-  const response = await fetch(url, {
-    method: "DELETE",
-    headers: {
-      Authorization: `token ${token}`,
-    },
-  });
-
-  if (response.status === 404) {
-    // Label not present on the issue — desired end state is "label absent"
-    return;
-  }
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`removeLabelFromIssue failed: ${response.status} ${response.statusText} — ${body}`);
-  }
-
-  return;
 }
